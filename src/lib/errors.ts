@@ -1,6 +1,8 @@
 // ==============================================================================
-// UNIFIED ERROR TAXONOMY — AADHYA ENTERPRISES
+// UNIFIED ERROR TAXONOMY — SHOLKVEDA
 // ==============================================================================
+
+import { ZodError } from 'zod';
 
 export class AppError extends Error {
   public readonly statusCode: number;
@@ -67,6 +69,20 @@ export class PaymentError extends AppError {
 }
 
 export function handleApiError(error: unknown) {
+  if (error instanceof ZodError) {
+    return {
+      status: 422,
+      body: {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Please check the submitted details.',
+          details: error.flatten(),
+        },
+      },
+    };
+  }
+
   if (error instanceof AppError) {
     return {
       status: error.statusCode,

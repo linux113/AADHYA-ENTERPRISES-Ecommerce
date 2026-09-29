@@ -1,5 +1,5 @@
 // ==============================================================================
-// RAZORPAY PAYMENT GATEWAY SERVICE — AADHYA ENTERPRISES
+// RAZORPAY PAYMENT GATEWAY SERVICE — SHOLKVEDA
 // Production Razorpay Engine with Cryptographic Verification & Idempotency
 // ==============================================================================
 
@@ -17,8 +17,11 @@ export interface RazorpayOrderResponse {
 
 export class RazorpayService {
   private static async getClient(): Promise<{ client: Razorpay; keyId: string; keySecret: string }> {
-    const keyId = (await SettingsRepository.get('RAZORPAY_KEY_ID')) || process.env.RAZORPAY_KEY_ID || 'rzp_test_sample_key';
-    const keySecret = (await SettingsRepository.get('RAZORPAY_KEY_SECRET')) || process.env.RAZORPAY_KEY_SECRET || 'rzp_test_sample_secret';
+    const keyId = ((await SettingsRepository.get('RAZORPAY_KEY_ID')) || process.env.RAZORPAY_KEY_ID || '').trim();
+    const keySecret = ((await SettingsRepository.get('RAZORPAY_KEY_SECRET')) || process.env.RAZORPAY_KEY_SECRET || '').trim();
+    if (!keyId || !keySecret) {
+      throw new PaymentError('Online payments are not configured. Choose Cash on Delivery or contact the store.');
+    }
 
     const client = new Razorpay({
       key_id: keyId,
@@ -32,6 +35,10 @@ export class RazorpayService {
    * Create Razorpay Payment Order on Server
    * Converts INR amount to Paise (1 INR = 100 Paise)
    */
+  public static async assertConfigured(): Promise<void> {
+    await this.getClient();
+  }
+
   public static async createOrder(
     amountInINR: number,
     receiptOrderNumber: string,
@@ -46,7 +53,7 @@ export class RazorpayService {
         currency: 'INR',
         receipt: receiptOrderNumber,
         notes: {
-          business: 'AADHYA ENTERPRISES',
+          business: 'SHOLKVEDA',
           origin: 'Hathras, U.P.',
           ...notes,
         },
@@ -58,15 +65,8 @@ export class RazorpayService {
         currency: 'INR',
         keyId,
       };
-    } catch (err: any) {
-      // In development or test sandbox without live API credentials, generate a deterministic fallback order ID
-      const fallbackOrderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      return {
-        razorpayOrderId: fallbackOrderId,
-        amount: amountInPaise,
-        currency: 'INR',
-        keyId,
-      };
+    } catch {
+      throw new PaymentError('Could not create an online payment session. Please retry or choose Cash on Delivery.');
     }
   }
 
@@ -83,8 +83,9 @@ export class RazorpayService {
     const body = `${razorpayOrderId}|${razorpayPaymentId}`;
     const expectedSignature = crypto.createHmac('sha256', keySecret).update(body).digest('hex');
 
-    // Also support valid test signatures in sandbox
-    const isValid = expectedSignature === signature || signature === 'sig_valid_seed_hash' || signature.startsWith('sig_test_');
+    const expected = Buffer.from(expectedSignature, 'hex');
+    const received = Buffer.from(signature, 'hex');
+    const isValid = received.length === expected.length && crypto.timingSafeEqual(expected, received);
 
     if (!isValid) {
       throw new PaymentError('Cryptographic payment signature mismatch. Verification failed.');
@@ -101,7 +102,8 @@ export class RazorpayService {
     webhookSignature: string,
     webhookSecret?: string
   ): Promise<boolean> {
-    const secret = webhookSecret || (await SettingsRepository.get('RAZORPAY_WEBHOOK_SECRET')) || 'whsec_aadhya_default';
+    const secret = webhookSecret || (await SettingsRepository.get('RAZORPAY_WEBHOOK_SECRET')) || process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) throw new PaymentError('Razorpay webhook secret is not configured.');
     const expectedSignature = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
     return expectedSignature === webhookSignature;
   }
@@ -121,7 +123,7 @@ export class RazorpayService {
       const refund = await client.payments.refund(razorpayPaymentId, {
         amount: amountInPaise,
         notes: {
-          refunded_by: 'AADHYA ENTERPRISES Admin',
+          refunded_by: 'SHOLKVEDA Admin',
           ...notes,
         },
       });
@@ -131,11 +133,7 @@ export class RazorpayService {
         status: refund.status || 'processed',
       };
     } catch {
-      // Return synthetic refund record for local/sandbox execution
-      return {
-        refundId: `rfnd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        status: 'processed',
-      };
+      throw new PaymentError('Razorpay refund request failed. Please retry from the payment dashboard.');
     }
   }
 

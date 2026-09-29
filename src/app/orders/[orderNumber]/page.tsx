@@ -1,6 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { AuthService } from '@/services/auth.service';
 import { orderRepository } from '@/repositories/order.repository';
 import {
   PackageCheck,
@@ -19,19 +21,25 @@ interface OrderTrackingPageProps {
   };
 }
 
-export const revalidate = 10;
+export const dynamic = 'force-dynamic';
+export const metadata = { robots: { index: false, follow: false } };
 
 export default async function OrderTrackingPage({ params }: OrderTrackingPageProps) {
+  const token = cookies().get('shlokveda_session_token')?.value;
+  if (!token) redirect(`/login?next=${encodeURIComponent(`/orders/${params.orderNumber}`)}`);
+  let user;
+  try { user = await AuthService.getCurrentUser(token); } catch { redirect('/login'); }
+
   const order = await orderRepository.findByOrderNumber(params.orderNumber);
 
-  if (!order) {
+  if (!order || order.userId !== user.id) {
     notFound();
   }
 
   const steps = [
     { key: 'PENDING', label: 'Order Received' },
     { key: 'CONFIRMED', label: 'Order Confirmed' },
-    { key: 'PROCESSING', label: 'Compounding in Hathras' },
+    { key: 'PACKED', label: 'Packed' },
     { key: 'SHIPPED', label: 'Dispatched via Courier' },
     { key: 'DELIVERED', label: 'Delivered' },
   ];
@@ -42,7 +50,7 @@ export default async function OrderTrackingPage({ params }: OrderTrackingPagePro
         return 0;
       case 'CONFIRMED':
         return 1;
-      case 'PROCESSING':
+      case 'PACKED':
         return 2;
       case 'SHIPPED':
         return 3;
@@ -84,7 +92,7 @@ export default async function OrderTrackingPage({ params }: OrderTrackingPagePro
           <div className="flex items-center gap-2">
             <PackageCheck className="w-5 h-5 text-[#1B4332]" />
             <span className="font-serif font-bold text-sm sm:text-base text-gray-900">
-              Live Fulfillment Status
+              Order Status
             </span>
           </div>
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full">
@@ -176,14 +184,14 @@ export default async function OrderTrackingPage({ params }: OrderTrackingPagePro
             </div>
             <div className="flex justify-between">
               <span>Payment Mode:</span>
-              <span className="font-bold text-gray-900">{order.paymentMethod}</span>
+              <span className="font-bold text-gray-900">{order.paymentGateway === 'CASH_ON_DELIVERY' ? 'Cash on Delivery' : 'Online payment'}</span>
             </div>
             <div className="flex justify-between">
               <span>Payment Status:</span>
               <span className="font-bold text-emerald-700">{order.paymentStatus}</span>
             </div>
             <div className="flex justify-between border-t border-gray-100 pt-2 font-bold text-base text-gray-900">
-              <span>Total Paid:</span>
+              <span>Order Total:</span>
               <span className="text-[#1B4332]">₹{order.totalAmount}</span>
             </div>
           </div>

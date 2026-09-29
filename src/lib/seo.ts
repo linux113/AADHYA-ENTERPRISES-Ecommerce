@@ -1,20 +1,20 @@
 // ==============================================================================
-// SEO & STRUCTURED DATA GENERATORS — AADHYA ENTERPRISES
+// SEO & STRUCTURED DATA GENERATORS — SHOLKVEDA
 // JSON-LD Schema.org Injectors for Product, LocalBusiness, BreadcrumbList, Article
 // ==============================================================================
 
 import { BlogPost, Product } from '@/types';
 
 export class SEOService {
-  private static baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://aadhyaenterprises.com';
+  private static baseUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
 
   public static generateLocalBusinessSchema() {
     return {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       '@id': `${this.baseUrl}/#organization`,
-      name: 'AADHYA ENTERPRISES',
-      description: 'Authentic classical Ayurvedic formulations handcrafted in Hathras, Uttar Pradesh.',
+      name: 'SHOLKVEDA',
+      description: 'Sholkveda product catalogue with names, pack sizes and printed MRPs sourced from the supplied brochure.',
       url: this.baseUrl,
       telephone: '+917017840020',
       taxID: '09ANCPV6879P1ZP',
@@ -55,10 +55,10 @@ export class SEOService {
       name: product.name,
       image: [primaryImg],
       description: product.description || product.shortDescription || product.fullDescription,
-      sku: product.skuPrefix || product.variants?.[0]?.sku || 'AE-HERB',
+      sku: product.skuPrefix || product.variants?.[0]?.sku || 'SV-PRODUCT',
       brand: {
         '@type': 'Brand',
-        name: 'AADHYA ENTERPRISES',
+        name: 'SHOLKVEDA',
       },
       offers: {
         '@type': 'AggregateOffer',
@@ -69,14 +69,16 @@ export class SEOService {
         availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
         seller: {
           '@type': 'Organization',
-          name: 'AADHYA ENTERPRISES',
+          name: 'SHOLKVEDA',
         },
       },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: product.ratingAverage || 4.9,
-        reviewCount: product.ratingCount || 1,
-      },
+      ...((product.ratingCount ?? 0) > 0 ? {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: product.ratingAverage ?? 0,
+          reviewCount: product.ratingCount ?? 0,
+        },
+      } : {}),
     };
   }
 
@@ -88,7 +90,7 @@ export class SEOService {
         '@type': 'ListItem',
         position: index + 1,
         name: item.name,
-        item: item.url.startsWith('http') ? item.url : `${this.baseUrl}${item.url}`,
+        item: item.url.startsWith('http') || !this.baseUrl ? item.url : `${this.baseUrl}${item.url}`,
       })),
     };
   }
@@ -105,11 +107,11 @@ export class SEOService {
       dateModified: blog.updatedAt,
       author: {
         '@type': 'Organization',
-        name: 'AADHYA ENTERPRISES Vaidya Council',
+        name: 'SHOLKVEDA Vaidya Council',
       },
       publisher: {
         '@type': 'Organization',
-        name: 'AADHYA ENTERPRISES',
+        name: 'SHOLKVEDA',
       },
     };
   }

@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - arena/01a0eb8d-aadhya-enterprises-ecommerce
   workflow_dispatch:
 
 jobs:
   Deploy-Production:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code

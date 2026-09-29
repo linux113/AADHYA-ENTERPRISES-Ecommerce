@@ -1,5 +1,5 @@
 // ==============================================================================
-// AUTHENTICATION & RBAC SERVICE — AADHYA ENTERPRISES
+// AUTHENTICATION & RBAC SERVICE — SHOLKVEDA
 // ==============================================================================
 
 import { UserRepository } from '@/repositories/user.repository';
@@ -7,8 +7,10 @@ import { PermissionKey, SystemRole, User } from '@/types';
 import { AuthenticationError, AuthorizationError, ConflictError, ValidationError } from '@/lib/errors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
-const JWT_SECRET = process.env.AUTH_SECRET || 'aadhya_jwt_super_secret_key_2026';
+const globalForAuth = globalThis as typeof globalThis & { shlokvedaRuntimeAuthSecret?: string };
+const JWT_SECRET = process.env.AUTH_SECRET || (globalForAuth.shlokvedaRuntimeAuthSecret ??= crypto.randomBytes(32).toString('hex'));
 const TOKEN_EXPIRY = '7d';
 
 export interface TokenPayload {

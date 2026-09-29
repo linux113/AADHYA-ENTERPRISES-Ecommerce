@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { orderRepository } from '@/repositories/order.repository';
 import { settingsRepository } from '@/repositories/settings.repository';
-import { CheckCircle2, Package, Truck, Phone, ArrowRight, Printer, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Package, Phone } from 'lucide-react';
 
 interface OrderConfirmationPageProps {
   searchParams: {
@@ -10,6 +10,8 @@ interface OrderConfirmationPageProps {
     orderNumber?: string;
   };
 }
+
+export const metadata = { robots: { index: false, follow: false } };
 
 export default async function OrderConfirmationPage({ searchParams }: OrderConfirmationPageProps) {
   const { orderId, orderNumber } = searchParams;
@@ -33,13 +35,13 @@ export default async function OrderConfirmationPage({ searchParams }: OrderConfi
 
         <div className="space-y-1">
           <span className="text-xs font-bold uppercase tracking-wider text-[#B08968]">
-            Order Confirmed & Received
+            {order ? 'Order saved in this preview' : 'Order details unavailable'}
           </span>
           <h1 className="font-serif text-3xl sm:text-4xl font-bold text-gray-900">
-            Dhanyavaad! Your Ayurvedic Order is Placed
+            {order ? 'Thank you. Your order has been recorded in this preview' : 'We could not retrieve this order from the current server session'}
           </h1>
           <p className="text-sm text-gray-600 max-w-lg mx-auto font-light">
-            We have received your order and our Hathras apothecaries are preparing your Shastriya formulations.
+            Review the order details below. Preview orders are held in memory and are not guaranteed to persist after a server restart.
           </p>
         </div>
 
@@ -65,16 +67,13 @@ export default async function OrderConfirmationPage({ searchParams }: OrderConfi
             <div className="p-5 rounded-2xl bg-white border border-[#F3EFE6] space-y-1">
               <span className="text-xs text-gray-400 font-medium">Payment Method & Status</span>
               <p className="text-sm font-bold text-gray-900">
-                {order.paymentMethod} ({order.paymentStatus})
+                {order.paymentGateway === 'CASH_ON_DELIVERY' ? 'Cash on Delivery' : 'Online payment'} ({order.paymentStatus})
               </p>
             </div>
 
             <div className="p-5 rounded-2xl bg-white border border-[#F3EFE6] space-y-1">
-              <span className="text-xs text-gray-400 font-medium">Estimated Delivery</span>
-              <p className="text-sm font-bold text-emerald-700 flex items-center gap-1.5">
-                <Truck className="w-4 h-4" />
-                2 - 4 Business Days
-              </p>
+              <span className="text-xs text-gray-400 font-medium">Delivery Estimate</span>
+              <p className="text-sm font-bold text-gray-700">Not configured in this preview</p>
             </div>
           </div>
 
@@ -144,7 +143,7 @@ export default async function OrderConfirmationPage({ searchParams }: OrderConfi
         </div>
       ) : (
         <div className="p-8 bg-white rounded-2xl border border-gray-200 text-center">
-          <p className="text-xs text-gray-500">Order details processed and sent to your email.</p>
+          <p className="text-xs text-gray-500">Order details are not available in this server session. Preview orders may be lost after a restart.</p>
         </div>
       )}
 
@@ -157,7 +156,7 @@ export default async function OrderConfirmationPage({ searchParams }: OrderConfi
           <div>
             <h4 className="text-xs font-bold text-gray-900">Need Assistance with your Order?</h4>
             <p className="text-[11px] text-gray-600">
-              Contact our Hathras Vaidya desk: {business.phone} | {business.email}
+              <a href={`tel:+${business.phone}`} className="underline">Call +{business.phone}</a>
             </p>
           </div>
         </div>

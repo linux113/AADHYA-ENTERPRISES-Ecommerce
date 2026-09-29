@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { Lock, Mail, User, Phone, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, User, Phone, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -54,7 +54,7 @@ export default function RegisterPage() {
             Create Your Account
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 font-light">
-            Join Aadhya Enterprises for authentic Ayurvedic wellness direct from Hathras.
+            Create an account to keep track of your orders.
           </p>
         </div>
 

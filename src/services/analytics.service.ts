@@ -1,5 +1,5 @@
 // ==============================================================================
-// DATABASE-DRIVEN ANALYTICS SERVICE — AADHYA ENTERPRISES
+// DATABASE-DRIVEN ANALYTICS SERVICE — SHOLKVEDA
 // Real Aggregated Business Intelligence (Zero Mock / Fake Data)
 // ==============================================================================
 

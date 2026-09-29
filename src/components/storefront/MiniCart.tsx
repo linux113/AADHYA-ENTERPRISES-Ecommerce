@@ -79,7 +79,7 @@ export function MiniCart() {
             {isFreeShipping ? (
               <div className="flex items-center text-xs font-semibold text-emerald-800 space-x-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>🎉 You have qualified for <strong>FREE Pan-India Delivery!</strong></span>
+                <span>🎉 Free delivery threshold reached.</span>
               </div>
             ) : (
               <div>
@@ -89,7 +89,7 @@ export function MiniCart() {
                 <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                   <div
                     className="bg-[#1B4332] h-1.5 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, (subtotal / 499) * 100)}%` }}
+                    style={{ width: `${Math.min(100, (subtotal / (calculation?.freeShippingThreshold || 499)) * 100)}%` }}
                   />
                 </div>
               </div>
@@ -106,14 +106,14 @@ export function MiniCart() {
                 <div>
                   <h3 className="font-serif text-base font-bold text-gray-800">Your basket is empty</h3>
                   <p className="text-xs text-gray-500 mt-1 max-w-xs">
-                    Explore our classical formulations and pure herbal remedies from Hathras.
+                    Browse products listed in the supplied brochure.
                   </p>
                 </div>
                 <button
                   onClick={closeCart}
                   className="px-5 py-2 bg-[#1B4332] text-white text-xs font-semibold rounded-full hover:bg-[#2D6A4F] transition-all"
                 >
-                  Explore Classical Range
+                  Browse catalogue
                 </button>
               </div>
             ) : (
@@ -212,7 +212,7 @@ export function MiniCart() {
                       type="text"
                       value={inputCoupon}
                       onChange={(e) => setInputCoupon(e.target.value.toUpperCase())}
-                      placeholder="Promo Code (e.g. AYURVEDA10)"
+                      placeholder="Enter coupon code"
                       className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs uppercase focus:outline-none focus:border-[#1B4332]"
                     />
                     <button

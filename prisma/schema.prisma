@@ -1,5 +1,5 @@
 // ==============================================================================
-// PRISMA SCHEMA — AADHYA ENTERPRISES AYURVEDIC E-COMMERCE PLATFORM
+// PRISMA SCHEMA — SHOLKVEDA AYURVEDIC E-COMMERCE PLATFORM
 // Compatible with Neon PostgreSQL (Production) and Hostinger MySQL (Future Target)
 // ==============================================================================
 
@@ -121,17 +121,22 @@ model Address {
 // ------------------------------------------------------------------------------
 
 enum AyurvedicFormulation {
+  AWALEHA
   CHURNA
   VATI
   ASAVA_ARISHTA
   TAILA
   GHRITA
   KWATH
+  KWATHA
+  BHASMA
+  LEPA
   SYRUP
   CAPSULE
   TABLET
   RAW_HERB
   WELLNESS
+  OTHER
 }
 
 model Category {
@@ -371,6 +376,7 @@ model Order {
 
   user               User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   items              OrderItem[]
+  couponUsages       CouponUsage[]
   payment            Payment?
   shipment           Shipment?
 
@@ -491,6 +497,7 @@ model CouponUsage {
 
   coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@unique([couponId, userId, orderId])
   @@index([couponId])
@@ -576,7 +583,7 @@ model BlogPost {
   summary         String?
   content         String
   featuredImg     String?
-  authorName      String           @default("Aadhya Ayurvedic Expert")
+  authorName      String           @default("Sholkveda Ayurvedic Expert")
   readTimeMinutes Int              @default(5)
   isPublished     Boolean          @default(false)
   publishedAt     DateTime?

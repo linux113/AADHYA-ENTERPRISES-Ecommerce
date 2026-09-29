@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     let userId: string | undefined = undefined;
     const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '') || req.cookies.get('aadhya_session_token')?.value;
+    const token = authHeader?.replace('Bearer ', '') || req.cookies.get('shlokveda_session_token')?.value;
     if (token) {
       try {
         const decoded = AuthService.verifyToken(token);

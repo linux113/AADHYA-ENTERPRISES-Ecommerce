@@ -30,16 +30,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check local storage and session
-    const savedToken = localStorage.getItem('aadhya_token');
-    const savedUser = localStorage.getItem('aadhya_user');
+    const savedToken = localStorage.getItem('shlokveda_token');
+    const savedUser = localStorage.getItem('shlokveda_user');
 
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
       } catch {
-        localStorage.removeItem('aadhya_token');
-        localStorage.removeItem('aadhya_user');
+        localStorage.removeItem('shlokveda_token');
+        localStorage.removeItem('shlokveda_user');
       }
     }
     setIsLoading(false);
@@ -50,8 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Direct (token, user) call
       setToken(param1);
       setUser(param2 as User);
-      localStorage.setItem('aadhya_token', param1);
-      localStorage.setItem('aadhya_user', JSON.stringify(param2));
+      localStorage.setItem('shlokveda_token', param1);
+      localStorage.setItem('shlokveda_user', JSON.stringify(param2));
       return;
     }
 
@@ -70,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setToken(data.data.token);
       setUser(data.data.user);
-      localStorage.setItem('aadhya_token', data.data.token);
-      localStorage.setItem('aadhya_user', JSON.stringify(data.data.user));
+      localStorage.setItem('shlokveda_token', data.data.token);
+      localStorage.setItem('shlokveda_user', JSON.stringify(data.data.user));
       return;
     }
   };
@@ -90,24 +90,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setToken(resData.data.token);
     setUser(resData.data.user);
-    localStorage.setItem('aadhya_token', resData.data.token);
-    localStorage.setItem('aadhya_user', JSON.stringify(resData.data.user));
+    localStorage.setItem('shlokveda_token', resData.data.token);
+    localStorage.setItem('shlokveda_user', JSON.stringify(resData.data.user));
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('aadhya_token');
-    localStorage.removeItem('aadhya_user');
+    localStorage.removeItem('shlokveda_token');
+    localStorage.removeItem('shlokveda_user');
     // Clear cookie
-    document.cookie = 'aadhya_session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'shlokveda_session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   };
 
   const updateUser = (updates: Partial<User>) => {
     if (!user) return;
     const updated = { ...user, ...updates };
     setUser(updated as User);
-    localStorage.setItem('aadhya_user', JSON.stringify(updated));
+    localStorage.setItem('shlokveda_user', JSON.stringify(updated));
   };
 
   return (

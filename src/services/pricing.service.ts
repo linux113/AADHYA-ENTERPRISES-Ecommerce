@@ -1,5 +1,5 @@
 // ==============================================================================
-// PRICING & CART CALCULATION SERVICE — AADHYA ENTERPRISES
+// PRICING & CART CALCULATION SERVICE — SHOLKVEDA
 // Server-Side Pricing Engine (Never trusts browser prices)
 // ==============================================================================
 
@@ -85,7 +85,7 @@ export class PricingService {
 
     // Shipping rules from settings
     const freeShippingThresholdStr = (await SettingsRepository.get('FREE_SHIPPING_THRESHOLD')) || '499';
-    const defaultShippingFeeStr = (await SettingsRepository.get('DEFAULT_SHIPPING_FEE')) || '50';
+    const defaultShippingFeeStr = (await SettingsRepository.get('BASE_SHIPPING_FEE')) || (await SettingsRepository.get('DEFAULT_SHIPPING_FEE')) || '50';
     const freeShippingThreshold = parseFloat(freeShippingThresholdStr) || 499;
     const defaultShippingFee = parseFloat(defaultShippingFeeStr) || 50;
 
@@ -133,9 +133,9 @@ export class PricingService {
       }
     }
 
-    // Estimated 5% GST on Ayurvedic formulations (inclusive)
+    // Brochure prices are used as listed; tax composition is not inferred here.
     const taxableBase = Math.max(0, subtotal - couponDiscount);
-    const estimatedGst = Number(((taxableBase * 5) / 105).toFixed(2));
+    const estimatedGst = 0;
     const finalPayableAmount = Number((taxableBase + shippingFee).toFixed(2));
 
     return {

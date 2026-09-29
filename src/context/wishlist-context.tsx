@@ -16,12 +16,12 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('aadhya_wishlist');
+      const saved = localStorage.getItem('shlokveda_wishlist');
       if (saved) {
         setWishlist(JSON.parse(saved));
       }
     } catch {
-      localStorage.removeItem('aadhya_wishlist');
+      localStorage.removeItem('shlokveda_wishlist');
     }
   }, []);
 
@@ -33,7 +33,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       updated = [...wishlist, productId];
     }
     setWishlist(updated);
-    localStorage.setItem('aadhya_wishlist', JSON.stringify(updated));
+    localStorage.setItem('shlokveda_wishlist', JSON.stringify(updated));
   };
 
   const isInWishlist = (productId: string) => wishlist.includes(productId);

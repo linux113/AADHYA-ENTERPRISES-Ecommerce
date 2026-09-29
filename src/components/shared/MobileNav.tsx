@@ -48,7 +48,7 @@ export function MobileNav() {
 
         {/* Wishlist */}
         <Link
-          href="/shop"
+          href="/wishlist"
           className={`relative flex flex-col items-center py-1 text-[10px] font-medium transition-colors ${
             isActive('/wishlist') ? 'text-[#1B4332] font-bold' : 'text-gray-600'
           }`}
@@ -82,7 +82,7 @@ export function MobileNav() {
 
         {/* Account */}
         <Link
-          href={user ? '/account/orders' : '/login'}
+          href={user ? '/account' : '/login'}
           className={`flex flex-col items-center py-1 text-[10px] font-medium transition-colors ${
             pathname.startsWith('/account') || pathname === '/login' ? 'text-[#1B4332] font-bold' : 'text-gray-600'
           }`}

@@ -3,8 +3,8 @@ import './global.css';
 import { Providers } from '@/components/shared/Providers';
 
 export const metadata: Metadata = {
-  title: 'AADHYA ENTERPRISES | Classical Ayurvedic Formulations From Hathras',
-  description: 'Pure classical Ayurvedic herbals, churnas, medicated tailas, and rasayanas formulated in Hathras, Uttar Pradesh. AYUSH & GMP compliant.',
+  title: 'Sholkveda | Product Catalogue',
+  description: 'Browse Sholkveda products with pack sizes, printed MRPs and product images transcribed from the supplied brochure.',
 };
 
 export default function RootLayout({

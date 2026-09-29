@@ -1,5 +1,5 @@
 // ==============================================================================
-// ORDER & FULFILLMENT SERVICE — AADHYA ENTERPRISES
+// ORDER & FULFILLMENT SERVICE — SHOLKVEDA
 // Complete Checkout, Payment Verification & Fulfillment State Machine
 // ==============================================================================
 
@@ -8,6 +8,7 @@ import { CouponRepository } from '@/repositories/coupon.repository';
 import { InventoryRepository } from '@/repositories/inventory.repository';
 import { OrderRepository } from '@/repositories/order.repository';
 import { ProductRepository } from '@/repositories/product.repository';
+import { SettingsRepository } from '@/repositories/settings.repository';
 import { PricingService } from '@/services/pricing.service';
 import { RazorpayService } from '@/services/razorpay.service';
 import {
@@ -21,6 +22,7 @@ import {
   ShipmentStatus,
 } from '@/types';
 import { NotFoundError, PaymentError, ValidationError } from '@/lib/errors';
+import { isPostgresConfigured } from '@/lib/postgres';
 
 export interface InitiateCheckoutInput {
   items: Array<{ variantId: string; quantity: number }>;
@@ -58,6 +60,15 @@ export class OrderService {
     }
 
     const paymentGateway = input.paymentGateway || PaymentGateway.RAZORPAY;
+    if (paymentGateway === PaymentGateway.CASH_ON_DELIVERY) {
+      const codEnabled = (await SettingsRepository.get('ENABLE_COD')) ?? (await SettingsRepository.get('COD_ENABLED')) ?? 'true';
+      if (codEnabled.toLowerCase() !== 'true') {
+        throw new ValidationError('Cash on Delivery is currently unavailable. Choose online payment if configured.');
+      }
+    }
+    if (paymentGateway === PaymentGateway.RAZORPAY) {
+      await RazorpayService.assertConfigured();
+    }
 
     // 3. Prepare Order Item Snapshots
     const orderItemsSnapshot: Array<Omit<OrderItem, 'id' | 'orderId'>> = pricing.items.map((item) => ({
@@ -96,24 +107,29 @@ export class OrderService {
 
     // 5. If Prepaid (Razorpay), create Razorpay Order
     if (paymentGateway === PaymentGateway.RAZORPAY) {
-      const rzpOrder = await RazorpayService.createOrder(pricing.finalPayableAmount, order.orderNumber, {
-        customer_email: input.customerEmail,
-        customer_phone: input.customerPhone,
-        order_id: order.id,
-      });
+      try {
+        const rzpOrder = await RazorpayService.createOrder(pricing.finalPayableAmount, order.orderNumber, {
+          customer_email: input.customerEmail,
+          customer_phone: input.customerPhone,
+          order_id: order.id,
+        });
 
-      await OrderRepository.updatePayment(order.id, {
-        razorpayOrderId: rzpOrder.razorpayOrderId,
-        amount: pricing.finalPayableAmount,
-        status: PaymentStatus.PENDING,
-      });
+        await OrderRepository.updatePayment(order.id, {
+          razorpayOrderId: rzpOrder.razorpayOrderId,
+          amount: pricing.finalPayableAmount,
+          status: PaymentStatus.PENDING,
+        });
 
-      return {
-        order,
-        razorpayOrderId: rzpOrder.razorpayOrderId,
-        amountInPaise: rzpOrder.amount,
-        keyId: rzpOrder.keyId,
-      };
+        return {
+          order,
+          razorpayOrderId: rzpOrder.razorpayOrderId,
+          amountInPaise: rzpOrder.amount,
+          keyId: rzpOrder.keyId,
+        };
+      } catch (error) {
+        await OrderRepository.updateOrderStatus(order.id, OrderStatus.CANCELLED, 'Online payment initialization failed');
+        throw error;
+      }
     }
 
     // Cash on Delivery flow
@@ -124,10 +140,11 @@ export class OrderService {
         order.orderNumber
       );
 
-      if (pricing.couponCode && input.userId) {
+      if (pricing.couponCode) {
         const coupon = await CouponRepository.findByCode(pricing.couponCode);
         if (coupon) {
-          await CouponRepository.recordUsage(coupon.id, input.userId, order.id);
+          if (input.userId) await CouponRepository.recordUsage(coupon.id, input.userId, order.id);
+          else await CouponRepository.recordGuestUsage(coupon.id);
         }
       }
 
@@ -151,6 +168,10 @@ export class OrderService {
       throw new NotFoundError('Order');
     }
 
+    if (order.paymentGateway !== PaymentGateway.RAZORPAY || order.payment?.razorpayOrderId !== razorpayOrderId) {
+      throw new PaymentError('Payment does not match this order.');
+    }
+
     // Idempotent check: If already paid, return early
     if (order.paymentStatus === PaymentStatus.PAID) {
       return order;
@@ -158,6 +179,16 @@ export class OrderService {
 
     // Cryptographic signature verification
     await RazorpayService.verifySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+
+    if (isPostgresConfigured()) {
+      const completed=await OrderRepository.completePaymentAtomically(order.id,razorpayOrderId,razorpayPaymentId,razorpaySignature);
+      if(!completed.order)throw new NotFoundError('Order');
+      if(!completed.alreadyPaid){
+        if(order.couponCode){const coupon=await CouponRepository.findByCode(order.couponCode);if(coupon){if(order.userId)await CouponRepository.recordUsage(coupon.id,order.userId,order.id);else await CouponRepository.recordGuestUsage(coupon.id);}}
+        await AuditRepository.log('ORDER_PAYMENT_CAPTURED','Order',order.id,order.userId||null,order.customerEmail,{paymentStatus:'PENDING'},{paymentStatus:'PAID',razorpayPaymentId});
+      }
+      return completed.order;
+    }
 
     // Atomic Stock Decrement & Ledger Logging
     const items = order.items.map((item) => ({
@@ -168,10 +199,11 @@ export class OrderService {
     await InventoryRepository.decrementForOrder(items, order.orderNumber);
 
     // Record Coupon Usage if applicable
-    if (order.couponCode && order.userId) {
+    if (order.couponCode) {
       const coupon = await CouponRepository.findByCode(order.couponCode);
       if (coupon) {
-        await CouponRepository.recordUsage(coupon.id, order.userId, order.id);
+        if (order.userId) await CouponRepository.recordUsage(coupon.id, order.userId, order.id);
+        else await CouponRepository.recordGuestUsage(coupon.id);
       }
     }
 

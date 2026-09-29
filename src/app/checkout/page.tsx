@@ -31,7 +31,7 @@ export default function CheckoutPage() {
   const { user } = useAuth();
   const { items, calculation, appliedCoupon, clearCart, loading } = useCart();
 
-  const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY' | 'COD'>('RAZORPAY');
+  const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY' | 'COD'>('COD');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -112,6 +112,9 @@ export default function CheckoutPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            customerName: fullName.trim(),
+            customerEmail: email.trim(),
+            customerPhone: phone.trim(),
             items: items.map((i) => ({
               productVariantId: i.productVariantId,
               quantity: i.quantity,
@@ -135,6 +138,9 @@ export default function CheckoutPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            customerName: fullName.trim(),
+            customerEmail: email.trim(),
+            customerPhone: phone.trim(),
             items: items.map((i) => ({
               productVariantId: i.productVariantId,
               quantity: i.quantity,
@@ -151,14 +157,14 @@ export default function CheckoutPage() {
 
         const { razorpayOrderId, amount, currency, orderId, keyId } = initData.data;
 
-        // Open Razorpay Modal or fallback simulation if script not available
+        // Open Razorpay Modal only when the real checkout script has loaded
         if (typeof window !== 'undefined' && window.Razorpay) {
           const options = {
             key: keyId,
             amount: amount,
             currency: currency,
-            name: 'AADHYA ENTERPRISES',
-            description: 'Classical Ayurvedic Formulations',
+            name: 'Sholkveda',
+            description: 'Product catalogue order',
             order_id: razorpayOrderId,
             prefill: {
               name: fullName,
@@ -204,20 +210,7 @@ export default function CheckoutPage() {
           const rzpInstance = new window.Razorpay(options);
           rzpInstance.open();
         } else {
-          // Fallback simulation in test mode
-          const verifyRes = await fetch('/api/payments/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              orderId: orderId,
-              razorpayOrderId: razorpayOrderId,
-              razorpayPaymentId: `pay_mock_${Date.now()}`,
-              razorpaySignature: 'mock_sig_pass',
-            }),
-          });
-          const verifyData = await verifyRes.json();
-          await clearCart();
-          router.push(`/order-confirmation?orderId=${orderId}`);
+          throw new Error('Online checkout did not load. Please retry or choose Cash on Delivery.');
         }
       }
     } catch (err: any) {
@@ -232,7 +225,7 @@ export default function CheckoutPage() {
       <div className="flex items-center gap-2 text-xs text-gray-500">
         <Link href="/cart" className="hover:text-[#1B4332]">Cart</Link>
         <span>/</span>
-        <span className="text-gray-900 font-bold">1-Page Secure Checkout</span>
+        <span className="text-gray-900 font-bold">Checkout</span>
       </div>
 
       <div className="flex items-center justify-between border-b border-[#F3EFE6] pb-4">
@@ -241,8 +234,12 @@ export default function CheckoutPage() {
         </h1>
         <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-bold bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
           <Lock className="w-3.5 h-3.5" />
-          <span>256-Bit SSL Encrypted</span>
+          <span>Secure checkout</span>
         </div>
+      </div>
+
+      <div role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-xs leading-relaxed text-amber-950">
+        Preview storefront: order and inventory records are held in application memory and may be lost when the server restarts. Do not submit real personal or payment information.
       </div>
 
       {errorMsg && (
@@ -293,7 +290,7 @@ export default function CheckoutPage() {
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Email Address (for Order Updates & Invoicing) *
+                  Email Address *
                 </label>
                 <input
                   type="email"
@@ -428,7 +425,7 @@ export default function CheckoutPage() {
                     Online Payment (UPI, Cards, NetBanking)
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Instant confirmation via Razorpay. Google Pay, PhonePe, Paytm, Debit/Credit Card.
+                    Choose an available payment method in Razorpay checkout.
                   </p>
                   <span className="inline-block mt-2 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
                     ⚡ Fastest Dispatch
@@ -556,14 +553,7 @@ export default function CheckoutPage() {
             </button>
 
             <div className="space-y-2 pt-2 text-[11px] text-gray-500">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Ayurvedic formulations dispatch within 24 hours</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Pan-India tracking link sent via SMS & Email</span>
-              </div>
+              <p>Delivery serviceability and timelines are not configured for this preview. Confirm them before a live purchase.</p>
             </div>
           </div>
         </div>

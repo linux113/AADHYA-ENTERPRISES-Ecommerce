@@ -11,10 +11,10 @@ export default function AdminSettingsPage() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form State
-  const [storeName, setStoreName] = useState('AADHYA ENTERPRISES');
+  const [storeName, setStoreName] = useState('Sholkveda');
   const [gstin, setGstin] = useState('09ANCPV6879P1ZP');
   const [phone, setPhone] = useState('7017840020');
-  const [email, setEmail] = useState('contact@aadhyaayurveda.com');
+  const [email, setEmail] = useState('');
   const [addressLine1, setAddressLine1] = useState('B.H Oil Meal Road, Next to Bank of Maharashtra');
   const [addressLine2, setAddressLine2] = useState('Dobra Bal Colony');
   const [city, setCity] = useState('Hathras');
@@ -24,7 +24,7 @@ export default function AdminSettingsPage() {
   const [baseShippingFee, setBaseShippingFee] = useState(50);
   const [enableCod, setEnableCod] = useState(true);
   const [announcementText, setAnnouncementText] = useState(
-    '🌿 Authentic Classical Ayurvedic Formulations Direct From Hathras | Free Pan-India Delivery Above ₹999'
+    'Sholkveda product names, pack sizes and listed MRPs from the supplied brochure'
   );
 
   useEffect(() => {
@@ -325,7 +325,7 @@ export default function AdminSettingsPage() {
                   <span className="text-xs font-bold text-gray-900 block">
                     Cash on Delivery (COD)
                   </span>
-                  <span className="text-[10px] text-gray-500">Allow COD across Pan-India</span>
+                  <span className="text-[10px] text-gray-500">Enable Cash on Delivery at checkout</span>
                 </div>
               </label>
             </div>
