@@ -40,6 +40,7 @@ import {
   User,
 } from '@/types';
 import bcrypt from 'bcryptjs';
+import { BROCHURE_CATEGORIES, BROCHURE_PRODUCTS } from './brochure-data';
 
 // Global Singleton Store for Persistent Runtime Execution
 class DatabaseStore {
@@ -213,7 +214,7 @@ class DatabaseStore {
       },
     ];
 
-    for (const cat of categoriesData) {
+    for (const cat of [...categoriesData, ...BROCHURE_CATEGORIES]) {
       this.categories.set(cat.id, {
         ...cat,
         isActive: true,
@@ -434,7 +435,12 @@ class DatabaseStore {
       },
     ];
 
-    for (const p of productsData) {
+    const combinedProducts = [
+      ...productsData,
+      ...BROCHURE_PRODUCTS.filter((bp) => !productsData.some((p) => p.id === bp.id)),
+    ];
+
+    for (const p of combinedProducts) {
       const prodRecord: Product = {
         id: p.id,
         categoryId: p.categoryId,
