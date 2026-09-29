@@ -41,22 +41,24 @@ export class PricingService {
     let mrpTotal = 0;
 
     for (const item of items) {
-      if (item.quantity <= 0) continue;
+      if (item.quantity <= 0) {
+        throw new ValidationError(`Quantity for item ${item.variantId} must be greater than 0`);
+      }
 
       const variant = await ProductRepository.findVariantById(item.variantId);
       if (!variant || !variant.isActive) {
-        continue;
+        throw new ValidationError(`Product variant ${item.variantId} not found or is no longer active`);
       }
 
       const product = await ProductRepository.findProductById(variant.productId);
       if (!product || !product.isActive) {
-        continue;
+        throw new ValidationError(`Product for variant ${variant.sku} is unavailable`);
       }
 
       const primaryImage = product.images?.find((img) => img.isPrimary)?.imageUrl || product.images?.[0]?.imageUrl || '';
       const unitPrice = variant.sellingPrice;
       const mrp = variant.mrp;
-      const quantity = Math.min(item.quantity, Math.max(1, variant.stockQuantity));
+      const quantity = item.quantity;
       const lineTotal = Number((unitPrice * quantity).toFixed(2));
 
       calculatedItems.push({

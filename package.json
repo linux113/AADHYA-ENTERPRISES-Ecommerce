@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "tsx prisma/seed.ts",
-    "test:backend": "tsx test-backend.ts"
+    "test:backend": "tsx test-backend.ts",
+    "test:qa": "tsx test-production-qa.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
