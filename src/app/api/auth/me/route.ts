@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '') || req.cookies.get('aadhya_session_token')?.value;
+    const token = authHeader?.replace('Bearer ', '') || req.cookies.get('shlokveda_session_token')?.value;
 
     if (!token) {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'No active session' } }, { status: 401 });

@@ -1,5 +1,5 @@
 // ==============================================================================
-// DOMAIN TYPES & ENUMS — AADHYA ENTERPRISES AYURVEDIC E-COMMERCE
+// DOMAIN TYPES & ENUMS — SHOLKVEDA AYURVEDIC E-COMMERCE
 // ==============================================================================
 
 export enum SystemRole {

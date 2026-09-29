@@ -20,7 +20,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <WishlistProvider>
           {!isAdmin && <Header />}
           {!isAdmin && <MiniCart />}
-          <main className="min-h-[70vh]">{children}</main>
+          <main className="min-h-[70vh] pb-20 md:pb-0">{children}</main>
           {!isAdmin && <Footer />}
           {!isAdmin && <MobileNav />}
         </WishlistProvider>

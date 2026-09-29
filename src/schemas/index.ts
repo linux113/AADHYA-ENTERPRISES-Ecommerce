@@ -1,5 +1,5 @@
 // ==============================================================================
-// ZOD VALIDATION SCHEMAS — AADHYA ENTERPRISES
+// ZOD VALIDATION SCHEMAS — SHOLKVEDA
 // ==============================================================================
 
 import { z } from 'zod';
@@ -59,7 +59,7 @@ export const CategorySchema = z.object({
   slug: z.string().trim().min(2, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with hyphens'),
   description: z.string().trim().optional(),
   imageUrl: z.string().url('Valid image URL required').optional().or(z.literal('')),
-  parentId: z.string().uuid().optional().nullable(),
+  parentId: z.string().min(3).optional().nullable(),
   displayOrder: z.number().int().default(0),
   isActive: z.boolean().default(true),
   metaTitle: z.string().trim().optional(),
@@ -67,7 +67,7 @@ export const CategorySchema = z.object({
 });
 
 export const ProductVariantInputSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: z.string().min(3).optional(),
   sku: z.string().trim().min(3, 'SKU is required'),
   sizeLabel: z.string().trim().min(1, 'Size/Weight label is required'), // e.g. "100g", "250g"
   mrp: z.number().positive('MRP must be positive'),
@@ -88,7 +88,7 @@ export const ProductImageInputSchema = z.object({
 });
 
 export const ProductMutationSchema = z.object({
-  categoryId: z.string().uuid('Category ID is required'),
+  categoryId: z.string().trim().min(3, 'Category ID is required'),
   name: z.string().trim().min(2, 'Product name is required'),
   slug: z.string().trim().min(2, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with hyphens'),
   skuPrefix: z.string().trim().min(2, 'SKU prefix is required'),
@@ -117,7 +117,7 @@ export const ProductMutationSchema = z.object({
 // ------------------------------------------------------------------------------
 
 export const CartItemInputSchema = z.object({
-  variantId: z.string().uuid('Valid variant ID required'),
+  variantId: z.string().trim().min(3, 'Valid variant ID required'),
   quantity: z.number().int().positive('Quantity must be at least 1').max(50, 'Max 50 units per item'),
 });
 
@@ -141,7 +141,7 @@ export const CheckoutInitiateSchema = z.object({
 });
 
 export const RazorpayVerifySchema = z.object({
-  orderId: z.string().uuid('Valid internal order ID required'),
+  orderId: z.string().trim().min(3, 'Valid internal order ID required'),
   razorpayOrderId: z.string().min(5, 'Razorpay order ID required'),
   razorpayPaymentId: z.string().min(5, 'Razorpay payment ID required'),
   razorpaySignature: z.string().min(10, 'Razorpay signature required'),
@@ -152,7 +152,7 @@ export const RazorpayVerifySchema = z.object({
 // ------------------------------------------------------------------------------
 
 export const StockAdjustmentSchema = z.object({
-  variantId: z.string().uuid('Valid variant ID required'),
+  variantId: z.string().trim().min(3, 'Valid variant ID required'),
   changeQty: z.number().int().refine((val) => val !== 0, 'Change quantity cannot be zero'),
   reason: z.nativeEnum(InventoryChangeReason),
   notes: z.string().trim().optional(),
@@ -177,7 +177,7 @@ export const CouponSchema = z.object({
 // ------------------------------------------------------------------------------
 
 export const ReviewCreateSchema = z.object({
-  productId: z.string().uuid('Valid product ID required'),
+  productId: z.string().trim().min(3, 'Valid product ID required'),
   rating: z.number().int().min(1).max(5),
   title: z.string().trim().optional(),
   comment: z.string().trim().min(5, 'Review must be at least 5 characters'),
@@ -205,12 +205,12 @@ export const BlogPostSchema = z.object({
   summary: z.string().trim().optional(),
   content: z.string().trim().min(20),
   featuredImg: z.string().url().optional().or(z.literal('')),
-  authorName: z.string().trim().default('Aadhya Ayurvedic Expert'),
+  authorName: z.string().trim().default('Sholkveda Ayurvedic Expert'),
   readTimeMinutes: z.number().int().positive().default(5),
   isPublished: z.boolean().default(false),
   metaTitle: z.string().trim().optional(),
   metaDescription: z.string().trim().optional(),
-  categoryIds: z.array(z.string().uuid()).optional(),
+  categoryIds: z.array(z.string().min(3)).optional(),
 });
 
 export const BusinessSettingsUpdateSchema = z.record(z.string(), z.string());

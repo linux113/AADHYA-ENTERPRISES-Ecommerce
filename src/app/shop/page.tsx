@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ProductCard } from '@/components/storefront/ProductCard';
 import { productRepository } from '@/repositories/product.repository';
 import { AyurvedicFormulation } from '@/types';
+import { BROCHURE_PRODUCTS } from '@/lib/brochure-data';
 import { Filter, SlidersHorizontal, ArrowLeft } from 'lucide-react';
 
 interface ShopPageProps {
@@ -36,16 +37,8 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     }),
   ]);
 
-  // Available formulations for filter
-  const formulations: AyurvedicFormulation[] = [
-    AyurvedicFormulation.AWALEHA,
-    AyurvedicFormulation.CHURNA,
-    AyurvedicFormulation.TAILA,
-    AyurvedicFormulation.VATI,
-    AyurvedicFormulation.ASAVA_ARISHTA,
-    AyurvedicFormulation.GHRITA,
-    AyurvedicFormulation.KWATHA,
-  ];
+  // Only show formulation filters represented by products in the supplied brochure.
+  const formulations = Array.from(new Set(BROCHURE_PRODUCTS.map((product) => product.ayurvedicFormulation)));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
@@ -59,10 +52,10 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="font-serif text-3xl sm:text-4xl font-bold text-gray-900">
-              Shastriya Ayurvedic Formulations
+              Sholkveda Product Catalogue
             </h1>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              Showing {productsData.products.length} of {productsData.total} classical remedies crafted in Hathras
+              Showing {productsData.products.length} of {productsData.total} brochure-listed products
             </p>
           </div>
         </div>
@@ -141,13 +134,13 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
               </div>
             </div>
 
-            {/* Hathras Quality Promise Box */}
+            {/* Source note */}
             <div className="p-4 rounded-2xl bg-white border border-[#C5A880]/40 space-y-2">
               <h4 className="text-xs font-bold text-[#1B4332] flex items-center gap-1.5">
-                <span>🌿</span> Hathras Purity Seal
+                <span>📖</span> Catalogue note
               </h4>
               <p className="text-[11px] text-gray-600 leading-relaxed font-light">
-                All formulations are made with wild-harvested herbs, authenticated via botanical chromatography.
+                Product names, pack sizes, printed MRPs and available pack images are transcribed from the supplied brochure.
               </p>
             </div>
           </div>

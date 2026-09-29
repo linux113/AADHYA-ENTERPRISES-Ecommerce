@@ -54,8 +54,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Initialize cart from localStorage
   useEffect(() => {
     try {
-      const savedItems = localStorage.getItem('aadhya_cart');
-      const savedCoupon = localStorage.getItem('aadhya_coupon');
+      const savedItems = localStorage.getItem('shlokveda_cart');
+      const savedCoupon = localStorage.getItem('shlokveda_coupon');
       if (savedItems) {
         setItemsList(JSON.parse(savedItems));
       }
@@ -63,7 +63,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCouponCode(savedCoupon);
       }
     } catch {
-      localStorage.removeItem('aadhya_cart');
+      localStorage.removeItem('shlokveda_cart');
     }
   }, []);
 
@@ -123,7 +123,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const saveItems = (newItems: Array<{ variantId: string; quantity: number }>) => {
     setItemsList(newItems);
-    localStorage.setItem('aadhya_cart', JSON.stringify(newItems));
+    localStorage.setItem('shlokveda_cart', JSON.stringify(newItems));
   };
 
   const openCart = () => setIsCartOpen(true);
@@ -180,7 +180,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       if (data.success && data.data?.valid) {
         setCouponCode(cleanCode);
-        localStorage.setItem('aadhya_coupon', cleanCode);
+        localStorage.setItem('shlokveda_coupon', cleanCode);
         return { success: true, message: data.data.message || 'Coupon applied successfully!' };
       } else {
         return { success: false, message: data.error?.message || 'Invalid coupon code' };
@@ -192,14 +192,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const removeCoupon = async () => {
     setCouponCode('');
-    localStorage.removeItem('aadhya_coupon');
+    localStorage.removeItem('shlokveda_coupon');
   };
 
   const clearCart = () => {
     setItemsList([]);
     setCouponCode('');
-    localStorage.removeItem('aadhya_cart');
-    localStorage.removeItem('aadhya_coupon');
+    localStorage.removeItem('shlokveda_cart');
+    localStorage.removeItem('shlokveda_coupon');
     setCalculation(null);
   };
 

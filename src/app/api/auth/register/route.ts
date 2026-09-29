@@ -9,13 +9,15 @@ export async function POST(req: NextRequest) {
     const payload = RegisterSchema.parse(json);
     const result = await AuthService.register(payload);
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: result,
-      },
-      { status: 201 }
-    );
+    const response = NextResponse.json({ success: true, data: result }, { status: 201 });
+    response.cookies.set('shlokveda_session_token', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+    return response;
   } catch (error) {
     const err = handleApiError(error);
     return NextResponse.json(err.body, { status: err.status });

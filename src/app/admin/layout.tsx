@@ -65,7 +65,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <h2 className="font-serif text-2xl font-bold text-gray-900">Restricted Admin Suite</h2>
           <p className="text-xs text-gray-600">
-            You must be signed in with an administrative role (e.g. <code>admin@aadhyaayurveda.com</code>) to access the Hathras management console.
+            You must be signed in with an administrative role (using an authorized admin account) to access the Hathras management console.
           </p>
           <div className="pt-2 flex flex-col gap-2">
             <Link
@@ -99,7 +99,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
               <div>
                 <span className="font-serif text-sm font-black tracking-wider block text-white">
-                  AADHYA ENTERPRISES
+                  SHOLKVEDA
                 </span>
                 <span className="text-[9px] font-bold uppercase tracking-widest text-[#C5A880] block">
                   Admin Control Suite

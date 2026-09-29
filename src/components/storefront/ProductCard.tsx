@@ -71,7 +71,7 @@ export function ProductCard({ product }: ProductCardProps) {
               src={primaryImage}
               alt={product.name}
               fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              className="object-contain p-3 sm:p-4 transition-transform duration-300 group-hover:scale-[1.02]"
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             />
           ) : (
@@ -103,22 +103,19 @@ export function ProductCard({ product }: ProductCardProps) {
           </Link>
 
           {/* Star Rating */}
-          <div className="flex items-center space-x-1.5 mt-1.5">
-            <div className="flex items-center text-[#C5A880]">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-3.5 h-3.5 ${
-                    i < Math.floor(product.ratingAverage || 5)
-                      ? 'fill-current text-[#C5A880]'
-                      : 'text-gray-300'
-                  }`}
-                />
-              ))}
+          {(product.ratingCount ?? 0) > 0 ? (
+            <div className="flex items-center space-x-1.5 mt-1.5" aria-label={`${product.ratingAverage ?? 0} out of 5 from ${product.ratingCount ?? 0} reviews`}>
+              <div className="flex items-center text-[#C5A880]">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className={`w-3.5 h-3.5 ${i < Math.floor(product.ratingAverage ?? 0) ? 'fill-current text-[#C5A880]' : 'text-gray-300'}`} />
+                ))}
+              </div>
+              <span className="text-[11px] font-bold text-gray-700">{product.ratingAverage ?? 0}</span>
+              <span className="text-[10px] text-gray-400">({product.ratingCount ?? 0})</span>
             </div>
-            <span className="text-[11px] font-bold text-gray-700">{product.ratingAverage || 4.9}</span>
-            <span className="text-[10px] text-gray-400">({product.ratingCount || 12})</span>
-          </div>
+          ) : (
+            <p className="text-[10px] text-gray-400 mt-1.5">No reviews yet</p>
+          )}
 
           {/* Variant Selector Pills (If multiple) */}
           {variants.length > 1 && (

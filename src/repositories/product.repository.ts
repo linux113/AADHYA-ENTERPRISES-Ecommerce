@@ -1,8 +1,10 @@
 // ==============================================================================
-// PRODUCT & CATALOG REPOSITORY — AADHYA ENTERPRISES
+// PRODUCT & CATALOG REPOSITORY — SHOLKVEDA
 // ==============================================================================
 
 import { db } from '@/lib/db';
+import { isPostgresConfigured, pgQuery, withPostgresTransaction } from '@/lib/postgres';
+import crypto from 'node:crypto';
 import {
   AyurvedicFormulation,
   Category,
@@ -48,18 +50,125 @@ export type ImageInput = {
   isPrimary?: boolean;
 };
 
+const asIso = (value: Date | string | null | undefined) => value ? new Date(value).toISOString() : new Date(0).toISOString();
+
+function mapDbCategory(row: any): Category {
+  return {
+    id: row.id, name: row.name, slug: row.slug, description: row.description ?? null,
+    imageUrl: row.imageUrl ?? null, parentId: row.parentId ?? null, displayOrder: row.displayOrder,
+    isActive: row.isActive, metaTitle: row.metaTitle ?? null, metaDescription: row.metaDescription ?? null,
+    createdAt: asIso(row.createdAt), updatedAt: asIso(row.updatedAt),
+  };
+}
+
+function mapDbVariant(row: any): ProductVariant {
+  return {
+    id: row.id, productId: row.productId, sku: row.sku, sizeLabel: row.sizeLabel,
+    mrp: Number(row.mrp), sellingPrice: Number(row.sellingPrice), costPrice: Number(row.costPrice),
+    stockQuantity: row.stockQuantity, reservedQuantity: row.reservedQuantity,
+    lowStockThreshold: row.lowStockThreshold, weightInGrams: row.weightInGrams,
+    isDefault: row.isDefault, isActive: row.isActive, createdAt: asIso(row.createdAt), updatedAt: asIso(row.updatedAt),
+  };
+}
+
+function mapDbImage(row: any): ProductImage {
+  return { id: row.id, productId: row.productId, imageUrl: row.imageUrl, altText: row.altText ?? null,
+    sortOrder: row.sortOrder, isPrimary: row.isPrimary, createdAt: asIso(row.createdAt) };
+}
+
+async function hydrateDbProducts(rows: any[]): Promise<Product[]> {
+  if (!rows.length) return [];
+  const ids = rows.map((row) => row.id);
+  const categoryIds = [...new Set(rows.map((row) => row.categoryId))];
+  const [categoriesResult, variantsResult, imagesResult, ratingsResult] = await Promise.all([
+    pgQuery('SELECT * FROM "Category" WHERE "id" = ANY($1::text[])', [categoryIds]),
+    pgQuery('SELECT * FROM "ProductVariant" WHERE "productId" = ANY($1::text[]) AND "isActive" = TRUE ORDER BY "isDefault" DESC, "sizeLabel"', [ids]),
+    pgQuery('SELECT * FROM "ProductImage" WHERE "productId" = ANY($1::text[]) ORDER BY "isPrimary" DESC, "sortOrder"', [ids]),
+    pgQuery('SELECT "productId", AVG("rating")::float AS "ratingAverage", COUNT(*)::int AS "ratingCount" FROM "Review" WHERE "isApproved" = TRUE AND "productId" = ANY($1::text[]) GROUP BY "productId"', [ids]),
+  ]);
+  const categories = new Map(categoriesResult.rows.map((row) => [row.id, mapDbCategory(row)]));
+  const variants = new Map<string, ProductVariant[]>();
+  for (const row of variantsResult.rows) variants.set(row.productId, [...(variants.get(row.productId) || []), mapDbVariant(row)]);
+  const images = new Map<string, ProductImage[]>();
+  for (const row of imagesResult.rows) images.set(row.productId, [...(images.get(row.productId) || []), mapDbImage(row)]);
+  const ratings = new Map(ratingsResult.rows.map((row) => [row.productId, row]));
+
+  return rows.map((row) => {
+    const rating = ratings.get(row.id);
+    return {
+      id: row.id, categoryId: row.categoryId, name: row.name, slug: row.slug, skuPrefix: row.skuPrefix,
+      shortDescription: row.shortDescription ?? null, fullDescription: row.fullDescription,
+      ingredients: row.ingredients, benefits: row.benefits, usageInstructions: row.usageInstructions,
+      precautions: row.precautions ?? null, ayurvedicFormulation: row.ayurvedicFormulation,
+      ayushLicenseNo: row.ayushLicenseNo ?? null, fssaiLicenseNo: row.fssaiLicenseNo ?? null,
+      isFeatured: row.isFeatured, isBestseller: row.isBestseller, isNewArrival: row.isNewArrival,
+      isActive: row.isActive, metaTitle: row.metaTitle ?? null, metaDescription: row.metaDescription ?? null,
+      metaKeywords: row.metaKeywords ?? null, createdAt: asIso(row.createdAt), updatedAt: asIso(row.updatedAt),
+      category: categories.get(row.categoryId) || null,
+      variants: variants.get(row.id) || [], images: images.get(row.id) || [],
+      ratingAverage: rating ? Number(rating.ratingAverage) : 0, ratingCount: rating ? Number(rating.ratingCount) : 0,
+    } as Product;
+  });
+}
+
+async function listProductsFromPostgres(options: ProductFilterOptions) {
+  const clauses = ['p."isActive" = TRUE'];
+  const values: unknown[] = [];
+  const add = (sql: string, value: unknown) => { values.push(value); clauses.push(sql.replace('?', `$${values.length}`)); };
+  if (options.categorySlug) add('LOWER(c."slug") = LOWER(?)', options.categorySlug);
+  else if (options.categoryId) add('p."categoryId" = ?', options.categoryId);
+  if (options.formulation) add('p."ayurvedicFormulation" = ?', options.formulation);
+  if (options.isFeatured !== undefined) add('p."isFeatured" = ?', options.isFeatured);
+  if (options.isBestseller !== undefined) add('p."isBestseller" = ?', options.isBestseller);
+  if (options.isNewArrival !== undefined) add('p."isNewArrival" = ?', options.isNewArrival);
+  const search = (options.searchQuery || options.search)?.trim();
+  if (search) {
+    values.push(`%${search}%`);
+    const n = values.length;
+    clauses.push(`(p."name" ILIKE $${n} OR p."shortDescription" ILIKE $${n} OR p."ingredients" ILIKE $${n} OR p."benefits" ILIKE $${n})`);
+  }
+  const result = await pgQuery(`SELECT p.* FROM "Product" p INNER JOIN "Category" c ON c."id" = p."categoryId" WHERE ${clauses.join(' AND ')}`, values);
+  let products = await hydrateDbProducts(result.rows);
+  if (options.inStockOnly) products = products.filter((p) => p.variants?.some((v) => v.stockQuantity > 0));
+  if (options.minPrice !== undefined || options.maxPrice !== undefined) {
+    products = products.filter((p) => {
+      const prices = p.variants?.map((v) => v.sellingPrice) || [];
+      if (!prices.length) return true;
+      const min = Math.min(...prices), max = Math.max(...prices);
+      return !(options.minPrice !== undefined && max < options.minPrice) && !(options.maxPrice !== undefined && min > options.maxPrice);
+    });
+  }
+  switch (options.sortBy) {
+    case 'price-low': products.sort((a,b) => Math.min(...(a.variants?.map(v=>v.sellingPrice)||[0])) - Math.min(...(b.variants?.map(v=>v.sellingPrice)||[0]))); break;
+    case 'price-high': products.sort((a,b) => Math.max(...(b.variants?.map(v=>v.sellingPrice)||[0])) - Math.max(...(a.variants?.map(v=>v.sellingPrice)||[0]))); break;
+    case 'rating': products.sort((a,b) => (b.ratingAverage || 0) - (a.ratingAverage || 0)); break;
+    case 'newest': products.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); break;
+    default: products.sort((a,b) => Number(b.isFeatured) - Number(a.isFeatured));
+  }
+  const total = products.length, page = Math.max(1, options.page || 1), limit = Math.max(1, options.limit || 24);
+  return { products: products.slice((page - 1) * limit, page * limit), total, page, totalPages: Math.ceil(total / limit) || 1 };
+}
+
 export class ProductRepository {
   // ----------------------------------------------------------------------------
   // CATEGORIES
   // ----------------------------------------------------------------------------
 
   public static async listCategories(activeOnly = true): Promise<Category[]> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery(`SELECT * FROM "Category" ${activeOnly ? 'WHERE "isActive" = TRUE' : ''} ORDER BY "displayOrder" ASC`);
+      return result.rows.map(mapDbCategory);
+    }
     return Array.from(db.categories.values())
       .filter((c) => !activeOnly || c.isActive)
       .sort((a, b) => a.displayOrder - b.displayOrder);
   }
 
   public static async findCategoryBySlug(slug: string): Promise<Category | null> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('SELECT * FROM "Category" WHERE LOWER("slug") = LOWER($1) LIMIT 1', [slug]);
+      return result.rows[0] ? mapDbCategory(result.rows[0]) : null;
+    }
     for (const cat of db.categories.values()) {
       if (cat.slug === slug.toLowerCase()) return { ...cat };
     }
@@ -67,11 +176,20 @@ export class ProductRepository {
   }
 
   public static async findCategoryById(id: string): Promise<Category | null> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('SELECT * FROM "Category" WHERE "id" = $1 LIMIT 1', [id]);
+      return result.rows[0] ? mapDbCategory(result.rows[0]) : null;
+    }
     const cat = db.categories.get(id);
     return cat ? { ...cat } : null;
   }
 
   public static async createCategory(catData: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>): Promise<Category> {
+    if (isPostgresConfigured()) {
+      const id = `cat_${crypto.randomUUID()}`;
+      const result = await pgQuery('INSERT INTO "Category" ("id","name","slug","description","imageUrl","parentId","displayOrder","isActive","metaTitle","metaDescription","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) RETURNING *', [id,catData.name,catData.slug,catData.description ?? null,catData.imageUrl ?? null,catData.parentId ?? null,catData.displayOrder,catData.isActive,catData.metaTitle ?? null,catData.metaDescription ?? null]);
+      return mapDbCategory(result.rows[0]);
+    }
     const id = `cat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const now = new Date().toISOString();
     const newCategory: Category = {
@@ -85,6 +203,15 @@ export class ProductRepository {
   }
 
   public static async updateCategory(id: string, updates: Partial<Category>): Promise<Category | null> {
+    if (isPostgresConfigured()) {
+      const columns: Record<string, string> = { name: 'name', slug: 'slug', description: 'description', imageUrl: 'imageUrl', parentId: 'parentId', displayOrder: 'displayOrder', isActive: 'isActive', metaTitle: 'metaTitle', metaDescription: 'metaDescription' };
+      const entries = Object.entries(updates).filter(([key, value]) => columns[key] && value !== undefined);
+      if (!entries.length) return this.findCategoryById(id);
+      const values = entries.map(([, value]) => value);
+      const assignments = entries.map(([key], index) => `${`"${columns[key]}"`} = $${index + 2}`);
+      const result = await pgQuery(`UPDATE "Category" SET ${assignments.join(', ')}, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $1 RETURNING *`, [id, ...values]);
+      return result.rows[0] ? mapDbCategory(result.rows[0]) : null;
+    }
     const cat = db.categories.get(id);
     if (!cat) return null;
     const updated: Category = {
@@ -97,6 +224,10 @@ export class ProductRepository {
   }
 
   public static async deleteCategory(id: string): Promise<boolean> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('DELETE FROM "Category" WHERE "id" = $1', [id]);
+      return (result.rowCount || 0) > 0;
+    }
     return db.categories.delete(id);
   }
 
@@ -110,6 +241,7 @@ export class ProductRepository {
     page: number;
     totalPages: number;
   }> {
+    if (isPostgresConfigured()) return listProductsFromPostgres(options);
     let result = Array.from(db.products.values()).filter((p) => p.isActive);
 
     // Filter by Category Slug or ID
@@ -216,6 +348,11 @@ export class ProductRepository {
   }
 
   public static async findProductBySlug(slug: string): Promise<Product | null> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('SELECT * FROM "Product" WHERE LOWER("slug") = LOWER($1) LIMIT 1', [slug]);
+      if (!result.rows[0]) return null;
+      return (await hydrateDbProducts([result.rows[0]]))[0];
+    }
     for (const p of db.products.values()) {
       if (p.slug === slug.toLowerCase()) {
         return this.populateProduct(p);
@@ -225,16 +362,29 @@ export class ProductRepository {
   }
 
   public static async findProductById(id: string): Promise<Product | null> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('SELECT * FROM "Product" WHERE "id" = $1 LIMIT 1', [id]);
+      if (!result.rows[0]) return null;
+      return (await hydrateDbProducts([result.rows[0]]))[0];
+    }
     const p = db.products.get(id);
     return p ? this.populateProduct(p) : null;
   }
 
   public static async findVariantById(variantId: string): Promise<ProductVariant | null> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('SELECT * FROM "ProductVariant" WHERE "id" = $1 LIMIT 1', [variantId]);
+      return result.rows[0] ? mapDbVariant(result.rows[0]) : null;
+    }
     const v = db.productVariants.get(variantId);
     return v ? { ...v } : null;
   }
 
   public static async listAllVariants(): Promise<ProductVariant[]> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('SELECT * FROM "ProductVariant" ORDER BY "createdAt" DESC');
+      return result.rows.map(mapDbVariant);
+    }
     return Array.from(db.productVariants.values());
   }
 
@@ -243,6 +393,24 @@ export class ProductRepository {
     variants: VariantInput[],
     images: ImageInput[] = []
   ): Promise<Product> {
+    if (isPostgresConfigured()) {
+      const id = `prod_${crypto.randomUUID()}`;
+      const now = new Date();
+      await withPostgresTransaction(async (client) => {
+        await client.query('INSERT INTO "Product" ("id","categoryId","name","slug","skuPrefix","shortDescription","fullDescription","ingredients","benefits","usageInstructions","precautions","ayurvedicFormulation","ayushLicenseNo","fssaiLicenseNo","isFeatured","isBestseller","isNewArrival","isActive","metaTitle","metaDescription","metaKeywords","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$22)', [id,productData.categoryId,productData.name,productData.slug,productData.skuPrefix,productData.shortDescription ?? null,productData.fullDescription,productData.ingredients,productData.benefits,productData.usageInstructions,productData.precautions ?? null,productData.ayurvedicFormulation,productData.ayushLicenseNo ?? null,productData.fssaiLicenseNo ?? null,productData.isFeatured,productData.isBestseller,productData.isNewArrival,productData.isActive,productData.metaTitle ?? null,productData.metaDescription ?? null,productData.metaKeywords ?? null,now]);
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i];
+          await client.query('INSERT INTO "ProductVariant" ("id","productId","sku","sizeLabel","mrp","sellingPrice","costPrice","stockQuantity","reservedQuantity","lowStockThreshold","weightInGrams","isDefault","isActive","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14)', [v.id || `var_${crypto.randomUUID()}`,id,v.sku,v.sizeLabel,v.mrp,v.sellingPrice,v.costPrice ?? 0,v.stockQuantity ?? 0,v.reservedQuantity ?? 0,v.lowStockThreshold ?? 5,v.weightInGrams ?? 0,v.isDefault ?? (i===0),v.isActive ?? true,now]);
+        }
+        for (let i = 0; i < images.length; i++) {
+          const image = images[i];
+          await client.query('INSERT INTO "ProductImage" ("id","productId","imageUrl","altText","sortOrder","isPrimary","createdAt") VALUES ($1,$2,$3,$4,$5,$6,$7)', [`img_${crypto.randomUUID()}`,id,image.imageUrl,image.altText || `${productData.name} - Sholkveda`,image.sortOrder ?? i,image.isPrimary ?? (i===0),now]);
+        }
+      });
+      const created = await this.findProductById(id);
+      if (!created) throw new Error('Created product could not be reloaded.');
+      return created;
+    }
     const id = `prod_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const now = new Date().toISOString();
 
@@ -286,7 +454,7 @@ export class ProductRepository {
         id: imgId,
         productId: id,
         imageUrl: img.imageUrl,
-        altText: img.altText || `${newProduct.name} - Aadhya Enterprises`,
+        altText: img.altText || `${newProduct.name} - Sholkveda`,
         sortOrder: img.sortOrder ?? i,
         isPrimary: img.isPrimary ?? (i === 0),
         createdAt: now,
@@ -303,6 +471,35 @@ export class ProductRepository {
     variants?: VariantInput[],
     images?: ImageInput[]
   ): Promise<Product | null> {
+    if (isPostgresConfigured()) {
+      const existing = await this.findProductById(id);
+      if (!existing) return null;
+      await withPostgresTransaction(async (client) => {
+        const allowed = ['categoryId','name','slug','skuPrefix','shortDescription','fullDescription','ingredients','benefits','usageInstructions','precautions','ayurvedicFormulation','ayushLicenseNo','fssaiLicenseNo','isFeatured','isBestseller','isNewArrival','isActive','metaTitle','metaDescription','metaKeywords'];
+        const entries = Object.entries(updates).filter(([key, value]) => allowed.includes(key) && value !== undefined);
+        if (entries.length) {
+          const params = entries.map(([, value]) => value);
+          const sets = entries.map(([key], i) => `"${key}" = $${i+2}`);
+          await client.query(`UPDATE "Product" SET ${sets.join(', ')}, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $1`, [id, ...params]);
+        }
+        if (variants) {
+          await client.query('UPDATE "ProductVariant" SET "isActive" = FALSE, "updatedAt" = CURRENT_TIMESTAMP WHERE "productId" = $1', [id]);
+          for (let i=0;i<variants.length;i++) {
+            const v=variants[i], variantId=v.id || `var_${crypto.randomUUID()}`;
+            const changed=await client.query('UPDATE "ProductVariant" SET "sku"=$3,"sizeLabel"=$4,"mrp"=$5,"sellingPrice"=$6,"costPrice"=$7,"stockQuantity"=$8,"reservedQuantity"=$9,"lowStockThreshold"=$10,"weightInGrams"=$11,"isDefault"=$12,"isActive"=$13,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1 AND "productId"=$2', [variantId,id,v.sku,v.sizeLabel,v.mrp,v.sellingPrice,v.costPrice ?? 0,v.stockQuantity ?? 0,v.reservedQuantity ?? 0,v.lowStockThreshold ?? 5,v.weightInGrams ?? 0,v.isDefault ?? (i===0),v.isActive ?? true]);
+            if (!changed.rowCount) await client.query('INSERT INTO "ProductVariant" ("id","productId","sku","sizeLabel","mrp","sellingPrice","costPrice","stockQuantity","reservedQuantity","lowStockThreshold","weightInGrams","isDefault","isActive","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)', [variantId,id,v.sku,v.sizeLabel,v.mrp,v.sellingPrice,v.costPrice ?? 0,v.stockQuantity ?? 0,v.reservedQuantity ?? 0,v.lowStockThreshold ?? 5,v.weightInGrams ?? 0,v.isDefault ?? (i===0),v.isActive ?? true]);
+          }
+        }
+        if (images) {
+          await client.query('DELETE FROM "ProductImage" WHERE "productId" = $1', [id]);
+          for (let i=0;i<images.length;i++) {
+            const image=images[i];
+            await client.query('INSERT INTO "ProductImage" ("id","productId","imageUrl","altText","sortOrder","isPrimary","createdAt") VALUES ($1,$2,$3,$4,$5,$6,CURRENT_TIMESTAMP)', [`img_${crypto.randomUUID()}`,id,image.imageUrl,image.altText || `${updates.name || existing.name} - Sholkveda`,image.sortOrder ?? i,image.isPrimary ?? (i===0)]);
+          }
+        }
+      });
+      return this.findProductById(id);
+    }
     const existing = db.products.get(id);
     if (!existing) return null;
 
@@ -354,7 +551,7 @@ export class ProductRepository {
           id: imgId,
           productId: id,
           imageUrl: img.imageUrl,
-          altText: img.altText || `${updatedProd.name} - Aadhya Enterprises`,
+          altText: img.altText || `${updatedProd.name} - Sholkveda`,
           sortOrder: img.sortOrder ?? i,
           isPrimary: img.isPrimary ?? (i === 0),
           createdAt: now,
@@ -366,6 +563,10 @@ export class ProductRepository {
   }
 
   public static async deleteProduct(id: string): Promise<boolean> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('UPDATE "Product" SET "isActive" = FALSE, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $1', [id]);
+      return (result.rowCount || 0) > 0;
+    }
     for (const [vKey, v] of db.productVariants.entries()) {
       if (v.productId === id) db.productVariants.delete(vKey);
     }
@@ -385,7 +586,7 @@ export class ProductRepository {
 
     const ratingCount = reviews.length;
     const ratingSum = reviews.reduce((acc, r) => acc + r.rating, 0);
-    const ratingAverage = ratingCount > 0 ? Number((ratingSum / ratingCount).toFixed(1)) : 5.0;
+    const ratingAverage = ratingCount > 0 ? Number((ratingSum / ratingCount).toFixed(1)) : 0;
 
     return {
       ...product,
@@ -393,8 +594,8 @@ export class ProductRepository {
       variants,
       images,
       reviews,
-      ratingCount: ratingCount || 1,
-      ratingAverage: ratingCount > 0 ? ratingAverage : 5.0,
+      ratingCount,
+      ratingAverage: ratingCount > 0 ? ratingAverage : 0,
     };
   }
 

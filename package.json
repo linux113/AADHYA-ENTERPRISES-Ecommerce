@@ -1,5 +1,5 @@
 {
-  "name": "aadhya-enterprises-ecommerce",
+  "name": "sholkveda-storefront",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "tsx prisma/seed.ts",
+    "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",
     "test:backend": "tsx test-backend.ts",
     "test:qa": "tsx test-production-qa.ts"
   },
@@ -27,6 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.436.0",
     "next": "^14.2.24",
+    "pg": "^8.23.0",
     "pdf-parse": "^2.4.5",
     "razorpay": "^2.9.4",
     "react": "^18.3.1",

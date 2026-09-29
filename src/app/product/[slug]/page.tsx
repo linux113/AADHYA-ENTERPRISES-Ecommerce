@@ -16,12 +16,12 @@ export const revalidate = 30;
 
 export async function generateMetadata({ params }: ProductPageProps) {
   const product = await productRepository.findBySlug(params.slug);
-  if (!product) return { title: 'Product Not Found | AADHYA ENTERPRISES' };
+  if (!product) return { title: 'Product Not Found | Sholkveda' };
 
   const desc = (product.description || product.fullDescription || product.shortDescription || '').slice(0, 160);
 
   return {
-    title: `${product.name} - Classical Ayurvedic Formulation | AADHYA ENTERPRISES`,
+    title: `${product.name} | Sholkveda Product Catalogue`,
     description: desc,
     openGraph: {
       title: product.name,

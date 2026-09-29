@@ -119,20 +119,18 @@ export default function AccountPage() {
 
         <div className="p-6 bg-white rounded-3xl border border-[#F3EFE6] space-y-1 shadow-xs">
           <div className="flex items-center justify-between text-gray-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Hathras Rewards</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Account storage</span>
             <Sparkles className="w-5 h-5 text-[#C5A880]" />
           </div>
-          <p className="text-2xl font-serif font-black text-[#1B4332]">150 Pts</p>
+          <p className="text-sm font-bold text-amber-800">Preview memory</p>
         </div>
 
         <div className="p-6 bg-white rounded-3xl border border-[#F3EFE6] space-y-1 shadow-xs">
           <div className="flex items-center justify-between text-gray-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Saved Addresses</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Addresses</span>
             <MapPin className="w-5 h-5 text-[#1B4332]" />
           </div>
-          <p className="text-2xl font-serif font-black text-gray-900">
-            {orders.length > 0 ? '1 Active' : '0'}
-          </p>
+          <p className="text-sm font-bold text-gray-700">Enter at checkout</p>
         </div>
       </div>
 

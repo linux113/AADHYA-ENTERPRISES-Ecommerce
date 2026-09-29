@@ -2,7 +2,6 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ProductCard } from '@/components/storefront/ProductCard';
-import { NewsletterForm } from '@/components/storefront/NewsletterForm';
 import { productRepository } from '@/repositories/product.repository';
 import { cmsRepository } from '@/repositories/cms.repository';
 import {
@@ -19,51 +18,26 @@ import {
 export const revalidate = 60; // 1 minute ISR
 
 export default async function HomePage() {
-  const [bestsellers, banners, categories] = await Promise.all([
-    productRepository.findMany({ isBestseller: true, limit: 8 }),
+  const [featuredProducts, banners] = await Promise.all([
+    productRepository.findMany({ isFeatured: true, limit: 8 }),
     cmsRepository.getActiveBanners(),
-    productRepository.getAllCategories(),
   ]);
 
   const primaryBanner = banners.find((b) => b.slot === 'HERO_PRIMARY') || {
-    title: 'Pure Shastriya Ayurveda From Hathras',
-    subtitle: '100% classical herbals formulated according to ancient Ayurvedic texts. Certified, authentic, and delivered fresh to your home.',
-    ctaText: 'Explore Formulations',
+    title: 'A thoughtful catalogue for everyday wellness',
+    subtitle: 'Explore the herbal products, pack sizes and printed prices shown in the brochure—brought together in one clear, easy-to-use storefront.',
+    ctaText: 'Explore the catalogue',
     ctaLink: '/shop',
     linkUrl: '/shop',
-    buttonText: 'Explore Formulations',
-    imageUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1600&q=80',
+    buttonText: 'Explore the catalogue',
+    imageUrl: '/products/pdf-p5-i3.webp',
   };
 
   const classicalCategories = [
-    {
-      title: 'Classical Awalehas',
-      slug: 'classical-formulations',
-      desc: 'Rejuvenating herbal jams & Chyawanprash',
-      icon: '🍯',
-      image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=600&q=80',
-    },
-    {
-      title: 'Medicated Oils & Tailas',
-      slug: 'herbal-oils',
-      desc: 'Kshirabala, Kumkumadi & Bhringraj oils',
-      icon: '🌿',
-      image: 'https://images.unsplash.com/photo-1608248597359-00f72f87a8b3?auto=format&fit=crop&w=600&q=80',
-    },
-    {
-      title: 'Pure Herbal Churnas',
-      slug: 'digestive-health',
-      desc: 'Single herb & classical synergistic powders',
-      icon: '🍃',
-      image: 'https://images.unsplash.com/photo-1512069772995-ec65ed45afd6?auto=format&fit=crop&w=600&q=80',
-    },
-    {
-      title: 'Vatis & Rasayanas',
-      slug: 'immunity-vitality',
-      desc: 'Standardized classical tablets & mineral herbals',
-      icon: '✨',
-      image: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=600&q=80',
-    },
+    { title: 'Syrups & Juices', slug: 'syrups-juices', desc: 'Browse the liquid products listed in the source catalogue.', icon: '🌿', image: '/products/pdf-p5-i3.webp' },
+    { title: 'Arks & Drops', slug: 'arks-drops', desc: 'Small-format products and herbal drops from the brochure.', icon: '💧', image: '/products/pdf-p3-i8.webp' },
+    { title: 'Herbal Oils', slug: 'herbal-oils', desc: 'Oils and liniments with sizes and prices from the source list.', icon: '🍃', image: '/products/pdf-p10-i1.webp' },
+    { title: 'Herbal Capsules', slug: 'herbal-capsules', desc: 'Capsule products with original pack imagery where available.', icon: '🌱', image: '/products/pdf-p12-i2.webp' },
   ];
 
   return (
@@ -76,7 +50,7 @@ export default async function HomePage() {
           <div className="space-y-6 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#C5A880]/20 border border-[#C5A880]/40 text-[#FAF7F2] text-xs font-bold uppercase tracking-wider backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5 text-[#C5A880]" />
-              <span>Direct From Hathras, Uttar Pradesh</span>
+              <span>Welcome to Sholkveda</span>
             </div>
 
             <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-[#FAF7F2]">
@@ -103,20 +77,10 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            {/* Quick trust metrics */}
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10 text-center lg:text-left">
-              <div>
-                <span className="block text-2xl font-serif font-bold text-[#C5A880]">100%</span>
-                <span className="text-[11px] text-gray-300">Shastriya Pure</span>
-              </div>
-              <div>
-                <span className="block text-2xl font-serif font-bold text-[#C5A880]">GMP</span>
-                <span className="text-[11px] text-gray-300">Certified Facility</span>
-              </div>
-              <div>
-                <span className="block text-2xl font-serif font-bold text-[#C5A880]">50K+</span>
-                <span className="text-[11px] text-gray-300">Orders Delivered</span>
-              </div>
+            <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-6 border-t border-white/10 text-center lg:text-left">
+              <div><span className="block text-2xl font-serif font-bold text-[#C5A880]">95</span><span className="text-[10px] sm:text-[11px] text-gray-300">brochure listings</span></div>
+              <div><span className="block text-2xl font-serif font-bold text-[#C5A880]">16</span><span className="text-[10px] sm:text-[11px] text-gray-300">source pages</span></div>
+              <div><span className="block text-2xl font-serif font-bold text-[#C5A880]">₹70</span><span className="text-[10px] sm:text-[11px] text-gray-300">lowest listed MRP</span></div>
             </div>
           </div>
 
@@ -137,10 +101,10 @@ export default async function HomePage() {
                 </div>
                 <div>
                   <h4 className="font-serif font-bold text-sm text-[#1B4332]">
-                    Sharangadhara & Charaka Samhita Formulations
+                    Product information from the supplied brochure
                   </h4>
                   <p className="text-[11px] text-gray-600">
-                    Handcrafted in copper and brass vessels with pure wild-harvested herbs.
+                    Pack sizes, printed MRPs and source product images are identified by brochure page.
                   </p>
                 </div>
               </div>
@@ -157,8 +121,8 @@ export default async function HomePage() {
               <Leaf className="w-6 h-6 text-[#C5A880]" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-gray-900">100% Shastriya Herbs</h4>
-              <p className="text-xs text-gray-600 mt-1">Zero synthetic fillers, chemical extracts, or artificial preservatives.</p>
+              <h4 className="font-bold text-sm text-gray-900">A clear product catalogue</h4>
+              <p className="text-xs text-gray-600 mt-1">Names and pack options transcribed from the supplied brochure.</p>
             </div>
           </div>
 
@@ -167,8 +131,8 @@ export default async function HomePage() {
               <ShieldCheck className="w-6 h-6 text-[#C5A880]" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-gray-900">AYUSH & GMP Certified</h4>
-              <p className="text-xs text-gray-600 mt-1">Standardized manufacturing adhering strictly to classical pharmacopeia.</p>
+              <h4 className="font-bold text-sm text-gray-900">Printed prices shown</h4>
+              <p className="text-xs text-gray-600 mt-1">The listed MRP is shown without invented sale discounts.</p>
             </div>
           </div>
 
@@ -177,8 +141,8 @@ export default async function HomePage() {
               <Award className="w-6 h-6 text-[#C5A880]" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-gray-900">Hathras Roots</h4>
-              <p className="text-xs text-gray-600 mt-1">Aadhya Enterprises, Dobra Bal Colony, Hathras (U.P. 204101).</p>
+              <h4 className="font-bold text-sm text-gray-900">Original pack images</h4>
+              <p className="text-xs text-gray-600 mt-1">Source photography is preserved from the provided product brochure.</p>
             </div>
           </div>
 
@@ -187,8 +151,8 @@ export default async function HomePage() {
               <Truck className="w-6 h-6 text-[#C5A880]" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-gray-900">Express Pan-India</h4>
-              <p className="text-xs text-gray-600 mt-1">Free delivery above ₹999. Secure Cash on Delivery & UPI.</p>
+              <h4 className="font-bold text-sm text-gray-900">Careful product information</h4>
+              <p className="text-xs text-gray-600 mt-1">Always read the package label and ask a qualified professional before use.</p>
             </div>
           </div>
         </div>
@@ -198,13 +162,13 @@ export default async function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-bold uppercase tracking-wider text-[#B08968]">
-            Classical Formulations
+            Browse by product type
           </span>
           <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
             Shop by Ayurvedic Category
           </h2>
           <p className="text-sm text-gray-600">
-            Targeted wellness remedies prepared with time-honored Ayurvedic preparation methods.
+            Categories follow the product groupings available in the source catalogue.
           </p>
         </div>
 
@@ -245,23 +209,23 @@ export default async function HomePage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-[#B08968]">
-              Most Loved Formulations
+              From the source brochure
             </span>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
-              Bestsellers in Classical Ayurveda
+              Catalogue highlights
             </h2>
           </div>
           <Link
             href="/shop"
             className="text-xs sm:text-sm font-bold text-[#1B4332] hover:text-[#2D6A4F] flex items-center gap-1.5 underline"
           >
-            <span>View All Products ({bestsellers.total})</span>
+            <span>View all {featuredProducts.total} listings</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {bestsellers.products.map((product) => (
+          {featuredProducts.products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
@@ -273,34 +237,34 @@ export default async function HomePage() {
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1B4332]/10 text-[#1B4332] text-xs font-bold uppercase tracking-wider">
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Authentic Hathras Tradition</span>
+              <span>Source-led product information</span>
             </div>
 
             <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 leading-snug">
-              Rooted in Hathras, Dedicated to Timeless Healing
+              Product details, brought together with care
             </h2>
 
             <p className="text-sm sm:text-base text-gray-700 leading-relaxed font-light">
-              At <strong className="font-bold text-gray-900">AADHYA ENTERPRISES</strong>, based on B.H Oil Meal Road, next to Bank of Maharashtra in Hathras, Uttar Pradesh, we honor the ancient science of Ayurveda. Every formulation is prepared according to strict Shastriya texts, utilizing slow heating, copper vats, and hand-selected raw herbs.
+              Sholkveda brings the supplied product brochure into a modern storefront. Each listing keeps the printed product name, pack size and MRP together, with available package photos and a reference back to the source page.
             </p>
 
             <div className="space-y-3 pt-2">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
                 <span className="text-xs sm:text-sm font-medium text-gray-800">
-                  Strict adherence to Charaka, Sushruta & Sharangadhara Samhitas
+                  Product-page references point back to the relevant brochure page
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
                 <span className="text-xs sm:text-sm font-medium text-gray-800">
-                  Heavy metal tested & microbially cleared batches
+                  Ingredients are shown only where transcribed from the source
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
                 <span className="text-xs sm:text-sm font-medium text-gray-800">
-                  Direct manufacturer pricing with 100% transparent ingredients
+                  No extra discounts or product claims have been invented here
                 </span>
               </div>
             </div>
@@ -310,7 +274,7 @@ export default async function HomePage() {
                 href="/about"
                 className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[#1B4332] text-white font-bold text-xs hover:bg-[#2D6A4F] transition-all shadow-md"
               >
-                <span>Read Our Full Story</span>
+                <span>How the catalogue is sourced</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -318,37 +282,24 @@ export default async function HomePage() {
 
           <div className="relative aspect-4/3 rounded-3xl overflow-hidden border border-[#F3EFE6] shadow-xl">
             <Image
-              src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=80"
-              alt="Ayurvedic preparation in copper vessels"
+              src="/products/pdf-p5-i3.webp"
+              alt="Triphala Ras package image from the supplied brochure"
               fill
-              className="object-cover"
+              className="object-contain p-4 sm:p-8"
               sizes="(max-width: 1024px) 100vw, 50vw"
             />
           </div>
         </div>
       </section>
 
-      {/* AYURVEDIC NEWSLETTER & FIRST ORDER DISCOUNT */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative rounded-3xl bg-[#1B4332] text-white p-8 sm:p-12 md:p-16 overflow-hidden shadow-2xl text-center space-y-6">
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#C5A880_1px,transparent_1px)] [background-size:16px_16px]" />
-          
-          <div className="relative z-10 max-w-2xl mx-auto space-y-4">
-            <span className="px-3.5 py-1 rounded-full bg-[#C5A880] text-[#1B4332] text-xs font-bold uppercase tracking-wider">
-              Exclusive 10% Off
-            </span>
-            <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold">
-              Join the Aadhya Ayurvedic Circle
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-300 font-light">
-              Subscribe to receive weekly Ayurvedic health guidance, seasonal diet tips, and a 10% coupon code for your first classical formulation order.
-            </p>
-
-            <NewsletterForm />
-
-            <p className="text-[10px] text-gray-400">
-              No spam. Unsubscribe at any time. Hathras, Uttar Pradesh.
-            </p>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="relative rounded-3xl bg-[#1B4332] text-white p-8 sm:p-12 overflow-hidden shadow-xl text-center space-y-5">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#C5A880]">Want to see the original?</span>
+          <h2 className="font-serif text-2xl sm:text-3xl font-bold">Product details, from their source</h2>
+          <p className="text-sm text-gray-200 max-w-xl mx-auto">Package photography and printed product details remain attributable to the supplied brochure.</p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            <Link href="/shop" className="inline-flex justify-center items-center rounded-full px-6 py-3 bg-[#C5A880] text-[#1B4332] font-bold text-sm">Browse products</Link>
+            <Link href="/about" className="inline-flex justify-center items-center rounded-full px-6 py-3 border border-white/30 text-white font-bold text-sm">How this catalogue is sourced</Link>
           </div>
         </div>
       </section>

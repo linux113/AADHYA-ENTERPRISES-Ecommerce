@@ -1,17 +1,27 @@
 // ==============================================================================
-// BUSINESS SETTINGS REPOSITORY — AADHYA ENTERPRISES
+// BUSINESS SETTINGS REPOSITORY — SHOLKVEDA
 // ==============================================================================
 
 import { db } from '@/lib/db';
+import { isPostgresConfigured, pgQuery } from '@/lib/postgres';
+import crypto from 'node:crypto';
 import { BusinessSetting, BusinessSettings } from '@/types';
 
 export class SettingsRepository {
   public static async get(key: string): Promise<string | null> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('SELECT "value" FROM "BusinessSetting" WHERE "key"=$1 LIMIT 1', [key]);
+      return result.rows[0]?.value ?? null;
+    }
     const s = db.businessSettings.get(key);
     return s ? s.value : null;
   }
 
   public static async getAll(publicOnly = false): Promise<Record<string, string>> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery(`SELECT "key","value" FROM "BusinessSetting" ${publicOnly ? 'WHERE "isPublic"=TRUE' : ''}`);
+      return Object.fromEntries(result.rows.map((row) => [row.key, row.value]));
+    }
     const res: Record<string, string> = {};
     for (const setting of db.businessSettings.values()) {
       if (!publicOnly || setting.isPublic) {
@@ -24,19 +34,19 @@ export class SettingsRepository {
   public static async getBusinessSettings(): Promise<BusinessSettings> {
     const all = await this.getAll();
     return {
-      storeName: all['STORE_NAME'] || 'AADHYA ENTERPRISES',
+      storeName: all['STORE_NAME'] || 'Sholkveda',
       gstin: all['GSTIN'] || '09ANCPV6879P1ZP',
       phone: all['PHONE'] || '7017840020',
-      email: all['EMAIL'] || 'contact@aadhyaayurveda.com',
+      email: all['EMAIL'] || '',
       addressLine1: all['ADDRESS_LINE1'] || 'B.H Oil Meal Road, Next to Bank of Maharashtra',
       addressLine2: all['ADDRESS_LINE2'] || 'Dobra Bal Colony',
       city: all['CITY'] || 'Hathras',
       state: all['STATE'] || 'Uttar Pradesh',
       postalCode: all['POSTAL_CODE'] || '204101',
-      freeShippingThreshold: Number(all['FREE_SHIPPING_THRESHOLD'] || 999),
+      freeShippingThreshold: Number(all['FREE_SHIPPING_THRESHOLD'] || 499),
       baseShippingFee: Number(all['BASE_SHIPPING_FEE'] || 50),
       enableCod: all['ENABLE_COD'] !== 'false',
-      announcementText: all['ANNOUNCEMENT_TEXT'] || '🌿 Classical Ayurvedic Formulations Direct From Hathras | Free Pan-India Delivery Above ₹999',
+      announcementText: all['ANNOUNCEMENT_TEXT'] || 'Sholkveda product names, pack sizes and listed MRPs from the supplied brochure',
     };
   }
 
@@ -61,6 +71,11 @@ export class SettingsRepository {
   }
 
   public static async set(key: string, value: string, isPublic = true, description?: string): Promise<BusinessSetting> {
+    if (isPostgresConfigured()) {
+      const result = await pgQuery('INSERT INTO "BusinessSetting" ("id","key","value","description","isPublic","updatedAt") VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP) ON CONFLICT ("key") DO UPDATE SET "value"=EXCLUDED."value","description"=COALESCE(EXCLUDED."description","BusinessSetting"."description"),"isPublic"=EXCLUDED."isPublic","updatedAt"=CURRENT_TIMESTAMP RETURNING *', [`set_${crypto.randomUUID()}`,key,value,description ?? null,isPublic]);
+      const row=result.rows[0];
+      return { id:row.id,key:row.key,value:row.value,description:row.description ?? null,isPublic:row.isPublic,updatedAt:new Date(row.updatedAt).toISOString() };
+    }
     const existing = db.businessSettings.get(key);
     const updated: BusinessSetting = {
       id: existing ? existing.id : `set_${key.toLowerCase()}`,

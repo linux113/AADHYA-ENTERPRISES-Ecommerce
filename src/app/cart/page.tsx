@@ -34,7 +34,7 @@ export default function CartPage() {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   const subtotal = calculation?.subtotal || 0;
-  const freeShippingThreshold = 999;
+  const freeShippingThreshold = calculation?.freeShippingThreshold || 499;
   const progressToFreeShipping = Math.min(100, (subtotal / freeShippingThreshold) * 100);
   const amountNeeded = Math.max(0, freeShippingThreshold - subtotal);
 
@@ -52,7 +52,7 @@ export default function CartPage() {
       setCouponMsg({ type: 'success', text: `Coupon ${couponCode.toUpperCase()} applied successfully!` });
       setCouponCode('');
     } else {
-      setCouponMsg({ type: 'error', text: res.message || 'Invalid or expired coupon code. Try WELCOME10' });
+      setCouponMsg({ type: 'error', text: res.message || 'Invalid or expired coupon code. Check the offer details and try again' });
     }
   };
 
@@ -98,8 +98,8 @@ export default function CartPage() {
           <span className="flex items-center gap-2">
             <Truck className="w-4 h-4 text-[#1B4332]" />
             {amountNeeded > 0
-              ? `Add ₹${amountNeeded.toFixed(0)} more to unlock FREE EXPRESS Pan-India Delivery!`
-              : '🎉 You have qualified for FREE Express Shipping!'}
+              ? `Add ₹${amountNeeded.toFixed(0)} more to qualify for free delivery.`
+              : '🎉 Free delivery threshold reached.'}
           </span>
           <span>{Math.round(progressToFreeShipping)}%</span>
         </div>
@@ -220,7 +220,7 @@ export default function CartPage() {
           <div className="p-5 sm:p-6 bg-white rounded-3xl border border-[#F3EFE6] shadow-sm space-y-4">
             <div className="flex items-center gap-2 text-xs font-bold text-gray-800 uppercase tracking-wider">
               <Tag className="w-4 h-4 text-[#1B4332]" />
-              <span>Apply Hathras Promo Code</span>
+              <span>Apply coupon code</span>
             </div>
 
             {appliedCoupon ? (
@@ -246,7 +246,7 @@ export default function CartPage() {
                   type="text"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  placeholder="e.g. WELCOME10"
+                  placeholder="Enter coupon code"
                   className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs uppercase font-bold focus:outline-none focus:ring-2 focus:ring-[#1B4332]"
                 />
                 <button
@@ -290,7 +290,7 @@ export default function CartPage() {
               )}
 
               <div className="flex justify-between">
-                <span>Pan-India Delivery</span>
+                <span>Delivery fee</span>
                 <span>
                   {calculation?.shippingFee === 0 ? (
                     <span className="text-emerald-700 font-bold uppercase text-xs">FREE</span>
@@ -301,7 +301,7 @@ export default function CartPage() {
               </div>
 
               <div className="flex justify-between text-gray-500 text-xs">
-                <span>Estimated GST (5% / 12% / 18%)</span>
+                <span>Tax</span>
                 <span>₹{calculation?.taxAmount || 0}</span>
               </div>
 

@@ -1,9 +1,13 @@
 // ==============================================================================
-// ORDER & PAYMENT REPOSITORY — AADHYA ENTERPRISES
+// ORDER & PAYMENT REPOSITORY — SHOLKVEDA
 // ==============================================================================
 
 import { db } from '@/lib/db';
+import { isPostgresConfigured, pgQuery, withPostgresTransaction } from '@/lib/postgres';
+import crypto from 'node:crypto';
+import { StockUnavailableError } from '@/lib/errors';
 import {
+  InventoryChangeReason,
   Order,
   OrderItem,
   OrderStatus,
@@ -23,18 +27,49 @@ export interface OrderFilterOptions {
   limit?: number;
 }
 
+const toIso=(value:Date|string|null|undefined)=>value?new Date(value).toISOString():null;
+function parseAddress(value:any){if(!value)return null;if(typeof value==='object')return value;try{return JSON.parse(value)}catch{return null}}
+function mapDbOrderItem(r:any):OrderItem{return{id:r.id,orderId:r.orderId,variantId:r.variantId,productNameSnapshot:r.productNameSnapshot,variantSizeSnapshot:r.variantSizeSnapshot,skuSnapshot:r.skuSnapshot,unitPrice:Number(r.unitPrice),quantity:r.quantity,lineTotal:Number(r.lineTotal),productName:r.productNameSnapshot,variantLabel:r.variantSizeSnapshot,sku:r.skuSnapshot,totalPrice:Number(r.lineTotal)}}
+function mapDbPayment(r:any):Payment{return{id:r.id,orderId:r.orderId,gateway:r.gateway,razorpayOrderId:r.razorpayOrderId??null,razorpayPaymentId:r.razorpayPaymentId??null,razorpaySignature:r.razorpaySignature??null,amount:Number(r.amount),currency:r.currency,status:r.status,gatewayResponse:r.gatewayResponse?parseAddress(r.gatewayResponse):null,refundId:r.refundId??null,refundAmount:r.refundAmount===null?null:Number(r.refundAmount),createdAt:toIso(r.createdAt)!,updatedAt:toIso(r.updatedAt)!}}
+function mapDbShipment(r:any):Shipment{return{id:r.id,orderId:r.orderId,carrierName:r.carrierName,trackingNumber:r.trackingNumber,status:r.status,dispatchedAt:toIso(r.dispatchedAt),deliveredAt:toIso(r.deliveredAt),createdAt:toIso(r.createdAt)!,updatedAt:toIso(r.updatedAt)!,carrier:r.carrierName}}
+function mapDbOrder(r:any,items:OrderItem[]=[],payment:Payment|null=null,shipment:Shipment|null=null):Order{return{id:r.id,orderNumber:r.orderNumber,userId:r.userId??null,customerName:r.customerName,customerEmail:r.customerEmail,customerPhone:r.customerPhone,shippingAddress:parseAddress(r.shippingAddress),billingAddress:parseAddress(r.billingAddress),subtotalAmount:Number(r.subtotalAmount),discountAmount:Number(r.discountAmount),couponCode:r.couponCode??null,couponDiscount:Number(r.couponDiscount),shippingFee:Number(r.shippingFee),taxAmount:Number(r.taxAmount),totalPayableAmount:Number(r.totalPayableAmount),orderStatus:r.orderStatus,paymentStatus:r.paymentStatus,paymentGateway:r.paymentGateway,adminNotes:r.adminNotes??null,createdAt:toIso(r.createdAt)!,updatedAt:toIso(r.updatedAt)!,items,payment,shipment,status:r.orderStatus,subtotal:Number(r.subtotalAmount),totalAmount:Number(r.totalPayableAmount),paymentMethod:r.paymentGateway,carrier:shipment?.carrierName??null,trackingNumber:shipment?.trackingNumber??null,trackingUrl:shipment?.trackingUrl??null}}
+async function hydrateDbOrder(row:any):Promise<Order>{
+  const [itemsResult,paymentResult,shipmentResult]=await Promise.all([
+    pgQuery('SELECT * FROM "OrderItem" WHERE "orderId"=$1 ORDER BY "id"',[row.id]),
+    pgQuery('SELECT * FROM "Payment" WHERE "orderId"=$1 LIMIT 1',[row.id]),
+    pgQuery('SELECT * FROM "Shipment" WHERE "orderId"=$1 LIMIT 1',[row.id]),
+  ]);
+  const shipment=shipmentResult.rows[0]?mapDbShipment(shipmentResult.rows[0]):null;
+  return mapDbOrder(row,itemsResult.rows.map(mapDbOrderItem),paymentResult.rows[0]?mapDbPayment(paymentResult.rows[0]):null,shipment);
+}
+
 export class OrderRepository {
   public static generateOrderNumber(): string {
     const year = new Date().getFullYear();
     const count = db.orders.size + 10001;
-    return `AE-${year}-${count}`;
+    return `SV-${year}-${count}`;
   }
 
   public static async createOrder(
     orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt' | 'items' | 'payment' | 'shipment'>,
     itemsData: Array<Omit<OrderItem, 'id' | 'orderId'>>
   ): Promise<Order> {
-    const id = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    if (isPostgresConfigured()) {
+      const id=`ord_${crypto.randomUUID()}`;
+      await pgQuery('CREATE SEQUENCE IF NOT EXISTS "order_number_seq" START WITH 10001');
+      await withPostgresTransaction(async(client)=>{
+        const seq=await client.query(`SELECT nextval('"order_number_seq"') AS value`);
+        const orderNumber=`SV-${new Date().getFullYear()}-${seq.rows[0].value}`;
+        const now=new Date();
+        await client.query('INSERT INTO "Order" ("id","orderNumber","userId","customerName","customerEmail","customerPhone","shippingAddress","billingAddress","subtotalAmount","discountAmount","couponCode","couponDiscount","shippingFee","taxAmount","totalPayableAmount","orderStatus","paymentStatus","paymentGateway","adminNotes","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$20)', [id,orderNumber,orderData.userId??null,orderData.customerName,orderData.customerEmail,orderData.customerPhone,JSON.stringify(orderData.shippingAddress),orderData.billingAddress?JSON.stringify(orderData.billingAddress):null,orderData.subtotalAmount,orderData.discountAmount,orderData.couponCode??null,orderData.couponDiscount,orderData.shippingFee,orderData.taxAmount,orderData.totalPayableAmount,orderData.orderStatus,orderData.paymentStatus,orderData.paymentGateway,orderData.adminNotes??null,now]);
+        for(const item of itemsData){await client.query('INSERT INTO "OrderItem" ("id","orderId","variantId","productNameSnapshot","variantSizeSnapshot","skuSnapshot","unitPrice","quantity","lineTotal") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',[`item_${crypto.randomUUID()}`,id,item.variantId,item.productNameSnapshot,item.variantSizeSnapshot,item.skuSnapshot,item.unitPrice,item.quantity,item.lineTotal]);}
+        await client.query('INSERT INTO "Payment" ("id","orderId","gateway","amount","currency","status","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$7)',[`pay_${id}`,id,orderData.paymentGateway,orderData.totalPayableAmount,'INR',PaymentStatus.PENDING,now]);
+      });
+      const saved=await this.findById(id);
+      if(!saved)throw new Error('Created order could not be reloaded.');
+      return saved;
+    }
+    const id = `ord_${crypto.randomUUID()}`;
     const orderNumber = this.generateOrderNumber();
     const now = new Date().toISOString();
 
@@ -83,12 +118,14 @@ export class OrderRepository {
   }
 
   public static async findById(id: string): Promise<Order | null> {
+    if (isPostgresConfigured()) { const r=await pgQuery('SELECT * FROM "Order" WHERE "id"=$1 LIMIT 1',[id]); return r.rows[0]?hydrateDbOrder(r.rows[0]):null; }
     const order = db.orders.get(id);
     if (!order) return null;
     return this.populateOrder(order);
   }
 
   public static async findByOrderNumber(orderNumber: string): Promise<Order | null> {
+    if (isPostgresConfigured()) { const r=await pgQuery('SELECT * FROM "Order" WHERE UPPER("orderNumber")=UPPER($1) LIMIT 1',[orderNumber.trim()]); return r.rows[0]?hydrateDbOrder(r.rows[0]):null; }
     const orders = Array.from(db.orders.values());
     for (const order of orders) {
       if (order.orderNumber.toUpperCase() === orderNumber.trim().toUpperCase()) {
@@ -104,6 +141,18 @@ export class OrderRepository {
     page: number;
     totalPages: number;
   }> {
+    if (isPostgresConfigured()) {
+      const clauses:string[]=[];const values:unknown[]=[];const add=(column:string,value:unknown)=>{values.push(value);clauses.push(`${column}=$${values.length}`)};
+      if(options.userId)add('"userId"',options.userId);
+      if(options.orderStatus)add('"orderStatus"',options.orderStatus);
+      if(options.paymentStatus)add('"paymentStatus"',options.paymentStatus);
+      if(options.searchQuery){values.push(`%${options.searchQuery.trim()}%`);const n=values.length;clauses.push(`("orderNumber" ILIKE $${n} OR "customerName" ILIKE $${n} OR "customerEmail" ILIKE $${n} OR "customerPhone" ILIKE $${n})`)}
+      const where=clauses.length?`WHERE ${clauses.join(' AND ')}`:'';
+      const count=await pgQuery(`SELECT count(*)::int AS total FROM "Order" ${where}`,values);
+      const total=count.rows[0]?.total||0,page=Math.max(1,options.page||1),limit=Math.max(1,options.limit||20),offset=(page-1)*limit;
+      const rows=await pgQuery(`SELECT * FROM "Order" ${where} ORDER BY "createdAt" DESC LIMIT $${values.length+1} OFFSET $${values.length+2}`,[...values,limit,offset]);
+      return {orders:await Promise.all(rows.rows.map(hydrateDbOrder)),total,page,totalPages:Math.ceil(total/limit)||1};
+    }
     let list = Array.from(db.orders.values());
 
     if (options.userId) {
@@ -148,6 +197,12 @@ export class OrderRepository {
     orderStatus: OrderStatus,
     adminNotes?: string | null
   ): Promise<Order | null> {
+    if (isPostgresConfigured()) {
+      const values:unknown[]=[orderId,orderStatus];let notesSql='';
+      if(adminNotes!==undefined){values.push(adminNotes);notesSql=', "adminNotes"=$3';}
+      const r=await pgQuery(`UPDATE "Order" SET "orderStatus"=$2,"updatedAt"=CURRENT_TIMESTAMP${notesSql} WHERE "id"=$1 RETURNING *`,values);
+      return r.rows[0]?hydrateDbOrder(r.rows[0]):null;
+    }
     const order = db.orders.get(orderId);
     if (!order) return null;
 
@@ -162,10 +217,43 @@ export class OrderRepository {
     return this.populateOrder(updated);
   }
 
+  public static async completePaymentAtomically(orderId:string,razorpayOrderId:string,razorpayPaymentId:string,razorpaySignature:string):Promise<{order:Order|null;alreadyPaid:boolean}>{
+    if(!isPostgresConfigured())throw new Error('Atomic PostgreSQL payment completion is only available when DATABASE_URL is configured.');
+    let alreadyPaid=false,found=false;
+    await withPostgresTransaction(async(client)=>{
+      const locked=await client.query('SELECT * FROM "Order" WHERE "id"=$1 FOR UPDATE',[orderId]);
+      const order=locked.rows[0];if(!order)return;found=true;
+      if(order.paymentStatus===PaymentStatus.PAID){alreadyPaid=true;return;}
+      if(order.orderStatus===OrderStatus.CANCELLED)throw new Error('A cancelled order cannot be marked paid.');
+      const payment=await client.query('SELECT "id","razorpayOrderId" FROM "Payment" WHERE "orderId"=$1 FOR UPDATE',[orderId]);
+      if(!payment.rows[0]||payment.rows[0].razorpayOrderId!==razorpayOrderId)throw new Error('Payment record does not match this order.');
+      const items=await client.query('SELECT * FROM "OrderItem" WHERE "orderId"=$1 ORDER BY "id" FOR UPDATE',[orderId]);
+      for(const item of items.rows){
+        const stock=await client.query('UPDATE "ProductVariant" SET "stockQuantity"="stockQuantity"-$2,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1 AND "stockQuantity">=$2 RETURNING "stockQuantity"',[item.variantId,item.quantity]);
+        if(!stock.rows[0]){const current=await client.query('SELECT "stockQuantity" FROM "ProductVariant" WHERE "id"=$1',[item.variantId]);throw new StockUnavailableError(item.skuSnapshot,item.quantity,current.rows[0]?.stockQuantity??0);}
+        await client.query('INSERT INTO "InventoryLedger" ("id","variantId","changeQty","resultingQty","reason","referenceId","notes","createdAt") VALUES ($1,$2,$3,$4,$5,$6,$7,CURRENT_TIMESTAMP)',[`inv_${crypto.randomUUID()}`,item.variantId,-item.quantity,stock.rows[0].stockQuantity,InventoryChangeReason.SALE,order.orderNumber,`Purchased under Order #${order.orderNumber}`]);
+      }
+      await client.query('UPDATE "Payment" SET "razorpayPaymentId"=$2,"razorpaySignature"=$3,"status"=$4,"updatedAt"=CURRENT_TIMESTAMP WHERE "orderId"=$1',[orderId,razorpayPaymentId,razorpaySignature,PaymentStatus.PAID]);
+      await client.query('UPDATE "Order" SET "paymentStatus"=$2,"orderStatus"=$3,"adminNotes"=$4,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1',[orderId,PaymentStatus.PAID,OrderStatus.CONFIRMED,'Prepaid order verified successfully via Razorpay']);
+    });
+    return {order:found?await this.findById(orderId):null,alreadyPaid};
+  }
+
   public static async updatePayment(
     orderId: string,
     updates: Partial<Payment>
   ): Promise<Payment | null> {
+    if (isPostgresConfigured()) {
+      return withPostgresTransaction(async(client)=>{
+        const existing=await client.query('SELECT * FROM "Payment" WHERE "orderId"=$1 LIMIT 1',[orderId]);
+        const old=existing.rows[0];
+        const response=updates.gatewayResponse===undefined?old?.gatewayResponse:(typeof updates.gatewayResponse==='string'?updates.gatewayResponse:JSON.stringify(updates.gatewayResponse));
+        const values=[updates.id||old?.id||`pay_${orderId}`,orderId,updates.gateway||old?.gateway||PaymentGateway.RAZORPAY,updates.razorpayOrderId===undefined?old?.razorpayOrderId??null:updates.razorpayOrderId,updates.razorpayPaymentId===undefined?old?.razorpayPaymentId??null:updates.razorpayPaymentId,updates.razorpaySignature===undefined?old?.razorpaySignature??null:updates.razorpaySignature,updates.amount??Number(old?.amount||0),updates.currency||old?.currency||'INR',updates.status||old?.status||PaymentStatus.PENDING,response??null,updates.refundId===undefined?old?.refundId??null:updates.refundId,updates.refundAmount===undefined?old?.refundAmount??null:updates.refundAmount,old?.createdAt||new Date()];
+        const result=await client.query('INSERT INTO "Payment" ("id","orderId","gateway","razorpayOrderId","razorpayPaymentId","razorpaySignature","amount","currency","status","gatewayResponse","refundId","refundAmount","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CURRENT_TIMESTAMP) ON CONFLICT ("orderId") DO UPDATE SET "gateway"=EXCLUDED."gateway","razorpayOrderId"=EXCLUDED."razorpayOrderId","razorpayPaymentId"=EXCLUDED."razorpayPaymentId","razorpaySignature"=EXCLUDED."razorpaySignature","amount"=EXCLUDED."amount","currency"=EXCLUDED."currency","status"=EXCLUDED."status","gatewayResponse"=EXCLUDED."gatewayResponse","refundId"=EXCLUDED."refundId","refundAmount"=EXCLUDED."refundAmount","updatedAt"=CURRENT_TIMESTAMP RETURNING *',[...values.slice(0,12),values[12]]);
+        if(updates.status)await client.query('UPDATE "Order" SET "paymentStatus"=$2,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1',[orderId,updates.status]);
+        return mapDbPayment(result.rows[0]);
+      });
+    }
     let paymentRecord: Payment | null = null;
     const payments = Array.from(db.payments.values());
     for (const p of payments) {
@@ -219,6 +307,16 @@ export class OrderRepository {
     trackingNumber: string,
     status: ShipmentStatus = ShipmentStatus.IN_TRANSIT
   ): Promise<Shipment> {
+    if (isPostgresConfigured()) {
+      const shipment=await withPostgresTransaction(async(client)=>{
+        const id=`shp_${orderId}`;
+        const r=await client.query('INSERT INTO "Shipment" ("id","orderId","carrierName","trackingNumber","status","dispatchedAt","deliveredAt","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP,CASE WHEN $5=$6 THEN CURRENT_TIMESTAMP ELSE NULL END,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT ("orderId") DO UPDATE SET "carrierName"=EXCLUDED."carrierName","trackingNumber"=EXCLUDED."trackingNumber","status"=EXCLUDED."status","deliveredAt"=CASE WHEN EXCLUDED."status"=$6 THEN CURRENT_TIMESTAMP ELSE "Shipment"."deliveredAt" END,"updatedAt"=CURRENT_TIMESTAMP RETURNING *',[id,orderId,carrierName,trackingNumber,status,ShipmentStatus.DELIVERED]);
+        const newStatus=status===ShipmentStatus.DELIVERED?OrderStatus.DELIVERED:OrderStatus.SHIPPED;
+        await client.query('UPDATE "Order" SET "orderStatus"=$2,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1 AND "orderStatus"<>$3',[orderId,newStatus,OrderStatus.DELIVERED]);
+        return mapDbShipment(r.rows[0]);
+      });
+      return shipment;
+    }
     const now = new Date().toISOString();
     let shipment: Shipment | null = null;
     const shipments = Array.from(db.shipments.values());
@@ -265,6 +363,10 @@ export class OrderRepository {
   }
 
   public static async hasUserPurchasedProduct(userId: string, productId: string): Promise<boolean> {
+    if (isPostgresConfigured()) {
+      const r=await pgQuery('SELECT EXISTS (SELECT 1 FROM "Order" o JOIN "OrderItem" oi ON oi."orderId"=o."id" JOIN "ProductVariant" v ON v."id"=oi."variantId" WHERE o."userId"=$1 AND o."paymentStatus"=$2 AND v."productId"=$3) AS purchased',[userId,PaymentStatus.PAID,productId]);
+      return Boolean(r.rows[0]?.purchased);
+    }
     const orders = Array.from(db.orders.values());
     for (const order of orders) {
       if (order.userId === userId && order.paymentStatus === PaymentStatus.PAID) {

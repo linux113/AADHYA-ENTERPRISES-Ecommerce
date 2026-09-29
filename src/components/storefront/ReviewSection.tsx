@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Review } from '@/types';
 import { useAuth } from '@/context/auth-context';
+import Link from 'next/link';
 import { Star, CheckCircle2, ThumbsUp, MessageSquare, AlertCircle } from 'lucide-react';
 
 interface ReviewSectionProps {
@@ -30,7 +31,7 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
         const res = await fetch(`/api/reviews?productId=${productId}`);
         const data = await res.json();
         if (data.success && data.data) {
-          setReviews(data.data.reviews || []);
+          setReviews(Array.isArray(data.data) ? data.data : (data.data.reviews || []));
         }
       } catch (err) {
         console.error('Error fetching reviews:', err);
@@ -69,8 +70,7 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
         throw new Error(data.error?.message || 'Failed to submit review');
       }
 
-      setReviews([data.data, ...reviews]);
-      setSuccessMsg('Thank you! Your verified review has been published.');
+      setSuccessMsg(data.message || 'Thank you. Your review was submitted for moderation.');
       setTitle('');
       setComment('');
       setShowForm(false);
@@ -83,7 +83,7 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
 
   const avgRating = reviews.length > 0
     ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
-    : '5.0';
+    : null;
 
   return (
     <div className="space-y-8">
@@ -91,18 +91,15 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
       <div className="bg-[#FAF7F2] p-6 sm:p-8 rounded-3xl border border-[#F3EFE6] flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="text-center">
-            <span className="text-5xl font-serif font-black text-[#1B4332]">{avgRating}</span>
-            <div className="flex text-[#C5A880] justify-center mt-1">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-4 h-4 ${
-                    i < Math.round(Number(avgRating)) ? 'fill-current text-[#C5A880]' : 'text-gray-300'
-                  }`}
-                />
-              ))}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">{reviews.length} Verified Reviews</p>
+            {avgRating ? (
+              <>
+                <span className="text-5xl font-serif font-black text-[#1B4332]">{avgRating}</span>
+                <div className="flex text-[#C5A880] justify-center mt-1">
+                  {[...Array(5)].map((_, i) => <Star key={i} className={`w-4 h-4 ${i < Math.round(Number(avgRating)) ? 'fill-current text-[#C5A880]' : 'text-gray-300'}`} />)}
+                </div>
+              </>
+            ) : <span className="text-sm font-bold text-gray-700">No rating yet</span>}
+            <p className="text-xs text-gray-500 mt-1">{reviews.length} customer {reviews.length === 1 ? 'review' : 'reviews'}</p>
           </div>
 
           <div className="hidden sm:block h-16 w-px bg-gray-200" />
@@ -110,25 +107,26 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
           <div className="space-y-1 text-xs text-gray-600">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>100% Verified Ayurvedic Formulations</span>
+              <span>Reviews appear after moderation</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Direct feedback from genuine customers</span>
+              <span>Purchase verification is marked when available</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Manufactured under strict GMP & AYUSH standards</span>
+              <span>Use the package label for product directions</span>
             </div>
           </div>
         </div>
 
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-6 py-3 rounded-xl bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] transition-all shadow-md shrink-0"
-        >
-          {showForm ? 'Cancel Review' : 'Write a Review'}
-        </button>
+        {user ? (
+          <button onClick={() => setShowForm(!showForm)} className="px-6 py-3 rounded-xl bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] transition-all shadow-md shrink-0">
+            {showForm ? 'Cancel Review' : 'Write a Review'}
+          </button>
+        ) : (
+          <Link href="/login" className="px-6 py-3 rounded-xl bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] transition-all shadow-md shrink-0">Sign in to review</Link>
+        )}
       </div>
 
       {successMsg && (
@@ -204,7 +202,7 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
               required
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Describe your health benefits, dosage experience, aroma, and packaging quality..."
+              placeholder="Share your experience with the product information, packaging, or ordering process..."
               className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B4332]"
             />
           </div>
@@ -236,7 +234,7 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
           <div className="p-8 text-center bg-[#FAF7F2] rounded-2xl border border-[#F3EFE6] space-y-2">
             <MessageSquare className="w-8 h-8 text-gray-400 mx-auto" />
             <p className="text-sm font-bold text-gray-700">No reviews yet for this formulation.</p>
-            <p className="text-xs text-gray-500">Be the first verified customer to share your experience!</p>
+            <p className="text-xs text-gray-500">Be the first to share an experience after purchasing this product.</p>
           </div>
         ) : (
           reviews.map((rev) => (
@@ -252,7 +250,7 @@ export function ReviewSection({ productId, productName }: ReviewSectionProps) {
                     </div>
                     <div>
                       <span className="font-bold text-sm text-gray-900 block leading-tight">
-                        {rev.user?.name || 'Verified Customer'}
+                        {rev.user?.name || 'Customer'}
                       </span>
                       {rev.isVerifiedPurchase && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">

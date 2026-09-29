@@ -77,7 +77,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 alt={product.name}
                 fill
                 priority
-                className="object-cover"
+                className="object-contain p-4 sm:p-8"
                 sizes="(max-width: 1024px) 100vw, 50vw"
               />
             ) : (
@@ -141,27 +141,17 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               {product.name}
             </h1>
 
-            {/* Rating Stars */}
-            <div className="flex items-center gap-2 pt-1">
-              <div className="flex text-[#C5A880]">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-4 h-4 ${
-                      i < Math.floor(product.ratingAverage || 5)
-                        ? 'fill-current text-[#C5A880]'
-                        : 'text-gray-300'
-                    }`}
-                  />
-                ))}
+            {(product.ratingCount ?? 0) > 0 ? (
+              <div className="flex items-center gap-2 pt-1" aria-label={`${product.ratingAverage ?? 0} out of 5 from ${product.ratingCount ?? 0} reviews`}>
+                <div className="flex text-[#C5A880]">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className={`w-4 h-4 ${i < Math.floor(product.ratingAverage ?? 0) ? 'fill-current text-[#C5A880]' : 'text-gray-300'}`} />
+                  ))}
+                </div>
+                <span className="text-xs font-bold text-gray-800">{product.ratingAverage ?? 0} / 5</span>
+                <span className="text-xs text-gray-400">({product.ratingCount ?? 0} reviews)</span>
               </div>
-              <span className="text-xs font-bold text-gray-800">
-                {product.ratingAverage || 4.9} / 5.0
-              </span>
-              <span className="text-xs text-gray-400">
-                ({product.ratingCount || 14} verified customer reviews)
-              </span>
-            </div>
+            ) : <p className="text-xs text-gray-500 pt-1">No reviews yet</p>}
           </div>
 
           {/* Pricing Box */}
@@ -180,7 +170,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               )}
             </div>
             <p className="text-[11px] text-gray-500">
-              Inclusive of all taxes. Free shipping on orders above ₹999.
+              Listed MRP. Shipping options and charges are shown at checkout.
             </p>
           </div>
 
@@ -207,7 +197,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     <div className="text-xs font-bold text-gray-900">{v.sizeLabel}</div>
                     <div className="text-xs font-bold text-[#1B4332] mt-0.5">₹{v.sellingPrice}</div>
                     {v.stockQuantity <= 5 && v.stockQuantity > 0 && (
-                      <div className="text-[10px] text-amber-600 font-medium">Only {v.stockQuantity} left</div>
+                      <div className="text-[10px] text-amber-600 font-medium">Preview stock: {v.stockQuantity}</div>
                     )}
                     {v.stockQuantity <= 0 && (
                       <div className="text-[10px] text-red-600 font-bold">Out of stock</div>
@@ -222,15 +212,15 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <div className="flex items-center gap-2 text-xs">
             {isOutOfStock ? (
               <span className="flex items-center gap-1.5 text-red-600 font-bold">
-                <AlertTriangle className="w-4 h-4" /> Currently Out of Stock
+                <AlertTriangle className="w-4 h-4" /> Not available in this preview
               </span>
             ) : stock <= 5 ? (
               <span className="flex items-center gap-1.5 text-amber-600 font-bold">
-                <AlertTriangle className="w-4 h-4" /> Low Stock: Only {stock} remaining in Hathras warehouse
+                <AlertTriangle className="w-4 h-4" /> Availability is checked again at checkout
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                <CheckCircle2 className="w-4 h-4" /> In Stock & Ready to Dispatch ({stock} units)
+                <CheckCircle2 className="w-4 h-4" /> Availability is checked again at checkout
               </span>
             )}
           </div>
@@ -280,19 +270,19 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-200">
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[#FAF7F2] text-xs text-gray-700">
               <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-              <span>100% Shastriya Pure</span>
+              <span>Printed MRP and pack sizes</span>
             </div>
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[#FAF7F2] text-xs text-gray-700">
               <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
-              <span>Hathras GMP Facility</span>
+              <span>Source-linked product details</span>
             </div>
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[#FAF7F2] text-xs text-gray-700">
               <Truck className="w-4 h-4 text-emerald-700 shrink-0" />
-              <span>Pan-India Dispatch</span>
+              <span>Check delivery at checkout</span>
             </div>
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[#FAF7F2] text-xs text-gray-700">
               <RotateCcw className="w-4 h-4 text-emerald-700 shrink-0" />
-              <span>7-Day Return Policy</span>
+              <span>Read the package label</span>
             </div>
           </div>
         </div>
@@ -302,10 +292,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       <div className="border border-[#F3EFE6] rounded-3xl bg-white overflow-hidden shadow-sm">
         <div className="flex border-b border-[#F3EFE6] bg-[#FAF7F2] overflow-x-auto">
           {[
-            { id: 'desc', label: 'Classical Overview' },
-            { id: 'ingredients', label: 'Key Herbal Ingredients' },
-            { id: 'dosage', label: 'Dosage & Anupana' },
-            { id: 'safety', label: 'Safety & Storage' },
+            { id: 'desc', label: 'Product Information' },
+            { id: 'ingredients', label: 'Ingredients' },
+            { id: 'dosage', label: 'Directions' },
+            { id: 'safety', label: 'Safety' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -327,10 +317,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <p>{product.description}</p>
               <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-1">
                 <h4 className="font-bold text-xs text-emerald-950 uppercase tracking-wider">
-                  Shastriya Reference:
+                  Source note:
                 </h4>
                 <p className="text-xs text-emerald-900">
-                  Prepared strictly according to classical methods codified in Ayurvedic pharmacopeia (AFI Part-I) under direct supervision of experienced Vaidyas.
+                  {product.shortDescription}
                 </p>
               </div>
             </div>
@@ -339,13 +329,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           {activeTab === 'ingredients' && (
             <div className="space-y-3">
               <h4 className="font-bold text-sm text-gray-900">
-                100% Pure Botanical Ingredients:
+                Product composition
               </h4>
               <p className="text-sm text-gray-700 leading-relaxed">
-                {product.ingredients || 'Standardized herbal extracts and classical ingredients.'}
+                {product.ingredients || 'Please refer to the product package for composition.'}
               </p>
               <div className="text-xs text-gray-500 italic">
-                * Zero added artificial colors, synthetic flavors, or synthetic gelatin/preservatives.
+                Information is shown only where transcribed from the source. Check the package for the complete list.
               </div>
             </div>
           )}
@@ -353,13 +343,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           {activeTab === 'dosage' && (
             <div className="space-y-3">
               <h4 className="font-bold text-sm text-gray-900">
-                Recommended Usage & Anupana:
+                Directions for use
               </h4>
               <p className="text-sm text-gray-700 leading-relaxed">
-                {product.dosage || 'Take as directed by an Ayurvedic physician.'}
+                {product.dosage || 'Follow the directions printed on the product package.'}
               </p>
               <p className="text-xs text-gray-500">
-                <strong>Anupana (Vehicle):</strong> Best consumed with warm cow milk, lukewarm water, or pure honey as advised for optimal bioavailability.
+                If directions are not shown on this page, follow the package label or seek advice from a qualified healthcare professional.
               </p>
             </div>
           )}
@@ -380,10 +370,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         </div>
       </div>
 
-      {/* VERIFIED CUSTOMER REVIEWS */}
+      {/* CUSTOMER REVIEWS */}
       <section className="space-y-6">
         <h3 className="font-serif text-2xl font-bold text-gray-900">
-          Verified Customer Experiences & Reviews
+          Customer Reviews
         </h3>
         <ReviewSection productId={product.id} productName={product.name} />
       </section>

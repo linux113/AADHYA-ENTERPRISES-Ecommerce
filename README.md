@@ -1,120 +1,65 @@
-# AADHYA ENTERPRISES — D2C Ayurvedic E-Commerce Platform & Admin Suite
+# Sholkveda Product Catalogue
 
-> **Production-Grade Direct-to-Consumer (D2C) Ayurvedic Commerce Platform** built for **AADHYA ENTERPRISES**, Hathras, Uttar Pradesh.
+A Next.js storefront built around product names, package options, printed MRPs and package photography transcribed from the supplied 16-page `ONLY AYURVEDA BROCHURE.pdf`. “Only Ayurveda” remains the source packaging identity shown in the images; **Sholkveda** is the storefront brand.
 
----
+## Persistence status
 
-## 🌿 Business Identity & Location
+The app has two data modes:
 
-- **Legal Business Name:** AADHYA ENTERPRISES
-- **Operating Premises:** B.H Oil Meal Road, Next to Bank of Maharashtra, Dobra Bal Colony, Hathras, Uttar Pradesh – 204101, India
-- **Customer Care Phone:** [+91 7017840020](tel:7017840020)
-- **Official GSTIN / UIN:** `09ANCPV6879P1ZP`
-- **Dynamic Configuration:** All business parameters, GSTIN, contact numbers, and delivery thresholds are fully manageable live via the Admin Settings Suite.
+- **Local preview:** with `DATABASE_URL` unset, repositories use the in-memory preview data. This is useful for the local storefront and automated checks, but data is not durable.
+- **Neon PostgreSQL:** when `DATABASE_URL` is set, the product/catalogue, user/address, settings, coupon, CMS/review/audit, inventory, and order/payment/shipment repository paths use the shared `pg` pool. Production runtime refuses to start without a database URL.
 
----
+The Neon bootstrap script is in `prisma/neon-setup.sql`. The user-reported database currently contains 31 tables, 8 categories, 84 products, 101 variants, and 84 images. **Stock was intentionally seeded at zero** because verified available inventory was not supplied; checkout must not be enabled for sale until accurate stock is entered. The bootstrap creates no administrator, coupon, order, or review records.
 
-## 🏛️ Architectural Highlights & Enterprise Portability
+The database-backed code has passed TypeScript and production-build checks, plus the in-memory backend and storefront QA suites. A live Neon connection and database-backed CRUD/payment/inventory flow have **not** been validated from this checkout because its `DATABASE_URL` is intentionally unset. Do not treat the build as proof of live database readiness or deploy to accept orders until private-URL validation is complete.
 
-1. **Zero Database Lock-in (Repository Pattern):**
-   - Built on a decoupled Repository and Service architecture with Prisma ORM.
-   - Designed for zero-downtime portability between Neon PostgreSQL and Hostinger MySQL.
-2. **Server-Side Pricing & Cart Integrity:**
-   - 100% server-validated cart totals, dynamic tier discounts, coupon redemption caps, and tax estimations.
-   - Tamper-proof checkout payload validation via Zod schemas.
-3. **Atomic Inventory Control:**
-   - Concurrency-safe atomic increments and decrements preventing overselling.
-   - Real-time stock reservation and ledger-backed audit logging for all manual and automated adjustments.
-4. **End-to-End Razorpay Payment Gateway Integration:**
-   - Server-side HMAC-SHA256 signature verification (`crypto.createHmac('sha256', secret)`).
-   - Automated order confirmation, invoice snapshotting, and stock settlement.
-5. **Role-Based Access Control (RBAC):**
-   - Fine-grained permission model (`MANAGE_PRODUCTS`, `MANAGE_ORDERS`, `MANAGE_INVENTORY`, `MANAGE_COUPONS`, `MANAGE_REVIEWS`, `MANAGE_SETTINGS`, `VIEW_ANALYTICS`, `VIEW_AUDIT_LOGS`).
-   - Secure HttpOnly JWT session tokens and authorization guards on all admin endpoints.
-6. **Live Database Analytics (No Simulated Data):**
-   - Financial summaries (Total Revenue, Paid Orders, Average Order Value), low-stock warnings, and top-selling Ayurvedic formulations aggregated directly from real database records.
+Carts and wishlists remain browser-local (localStorage). Razorpay also requires valid server-side credentials and a configured webhook secret; payment success is not simulated. Verify business contact details, delivery terms, inventory, and payment settings before launch. Rotate any Neon credential that was previously exposed before using the database in production.
 
----
+## Local preview
 
-## 📦 Tech Stack
-
-- **Framework:** Next.js 14 (App Router, Server Components & Route Handlers)
-- **Language:** TypeScript 5.4+ (Strict Mode)
-- **Styling:** Tailwind CSS + Lucide Icons + Radix UI primitives
-- **ORM & Data Layer:** Prisma ORM with In-Memory / PostgreSQL / MySQL persistence
-- **Validation:** Zod Schema Validation
-- **Payments:** Razorpay Node.js SDK with Webhooks and HMAC-SHA256 signature verification
-- **Authentication:** JWT + bcryptjs password hashing
-
----
-
-## 🚀 Getting Started
-
-### 1. Installation
 ```bash
-npm install
+npm ci
+npm run dev
 ```
 
-### 2. Run Comprehensive Backend Test Suite (36 Integration Tests)
+Open the local Next.js URL printed by the dev server. Without `DATABASE_URL`, this is an in-memory preview. Do not submit real customer or payment information to it.
+
+## Neon and production setup
+
+1. In Neon, rotate any credential previously shared outside the private dashboard, then use the new connection string.
+2. Run `prisma/neon-setup.sql` once against an **empty** Neon schema. Do not rerun it over an initialized database.
+3. Set `DATABASE_URL`, a strong stable `AUTH_SECRET`, and required payment/webhook variables in the **private deployment environment** (for example, Vercel Production). Never commit or paste secrets into source control or chat.
+4. Create the first administrator from a private execution environment using `npm run admin:bootstrap` with `DATABASE_URL`, `ADMIN_EMAIL`, and a unique `ADMIN_PASSWORD` of at least 14 characters. The command only creates a new account; it will not promote or reset an existing email. Do not put the database URL or password in a shared terminal transcript.
+5. Enter verified inventory quantities in the admin inventory screen and verify checkout, order persistence, stock-ledger changes, payment callbacks, and cancellation/refund flows against the private database before accepting live orders.
+
+`DATABASE_URL` is deliberately not stored in this checkout. The optional `ADMIN_EMAIL` / `ADMIN_PASSWORD` values are consumed only by the explicit bootstrap script; they are not an automatic production-startup mechanism.
+
+## Environment variables
+
+- `DATABASE_URL`: Neon PostgreSQL connection string; required by the production runtime.
+- `AUTH_SECRET`: stable, random secret of at least 32 characters for signed sessions.
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FULL_NAME`: used only by the explicit administrator bootstrap command.
+- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`: server-side payment configuration for live Razorpay operations.
+- `NEXT_PUBLIC_SITE_URL`: verified public site origin for absolute sitemap links.
+
+## Validation
+
 ```bash
 npm run test:backend
-```
-
-### 3. Production Build & Start
-```bash
+npm run test:qa
+npx tsc --noEmit
 npm run build
-npm start
-```
-The application will be live at `http://localhost:3000`.
-
----
-
-## 🔐 Administrative Access Credentials (Default Seed)
-
-- **Admin Portal URL:** `http://localhost:3000/admin`
-- **Super Admin Email:** `admin@aadhyaenterprises.com`
-- **Super Admin Password:** `AadhyaAdmin@2026`
-- **Customer Demo Email:** `rajesh.sharma@example.com`
-- **Customer Demo Password:** `CustomerPass@2026`
-- **Promo Coupon Code:** `AYURVEDA10` (10% discount on carts above ₹499)
-
----
-
-## 📁 Project Structure
-
-```
-├── prisma/
-│   ├── schema.prisma            # Database schema with full indexes and relational foreign keys
-│   └── seed.ts                  # Seed script for initial Ayurvedic catalog, admin, and settings
-├── src/
-│   ├── app/
-│   │   ├── admin/               # Full Admin Suite (Dashboard, Products, Orders, Inventory, Coupons, Reviews, CMS, Settings, Audit Logs)
-│   │   ├── api/                 # REST API Handlers (Catalog, Cart, Orders, Razorpay, Auth, Admin)
-│   │   ├── cart/                # Dynamic Cart Page
-│   │   ├── checkout/            # 1-Page Express Checkout with Razorpay
-│   │   ├── product/[slug]/      # Ayurvedic Product Detail Page (PDP) with Multi-Variant Selector
-│   │   ├── shop/                # Filterable Product Catalog
-│   │   ├── page.tsx             # Storefront Home Page with Hero, Categories, Bestsellers, Benefits
-│   │   └── layout.tsx           # Root Layout with Unified Providers & Header/Footer
-│   ├── components/
-│   │   ├── admin/               # Admin Product Multi-Variant Form & Table Components
-│   │   ├── shared/              # Header, Footer, Providers, Mobile Nav
-│   │   └── storefront/          # ProductCard, MiniCart, ReviewSection, SearchModal, NewsletterForm
-│   ├── context/
-│   │   ├── auth-context.tsx     # Authentication and Session State
-│   │   ├── cart-context.tsx     # Client-side Cart with Server-Side Calculation Sync
-│   │   └── wishlist-context.tsx # Persistent Customer Wishlist
-│   ├── repositories/            # Database Access Repositories (Product, Order, Inventory, User, CMS, Settings, Coupon, Audit)
-│   ├── services/                # Business Logic Services (Pricing, Order, Razorpay, Auth, Analytics)
-│   ├── schemas/                 # Zod Validation Schemas
-│   └── types/                   # TypeScript Domain Enums & Interfaces
-└── test-backend.ts              # 36-Step End-to-End Domain Verification Test Suite
 ```
 
----
+The automated backend checks run against the in-memory preview mode unless a database URL is configured; they do not replace live Neon validation.
 
-## 📜 Legal & Compliance
+## Main directories
 
-- **AYUSH & FSSAI Compliant Packaging Information**
-- **Dynamic Legal Policies:** Shipping & Delivery, Return & Refund, Terms & Conditions, Privacy Policy.
-- Prepared exclusively for **AADHYA ENTERPRISES (Hathras, U.P.)**.
+- `src/lib/brochure-data.ts` — source-derived product, category, pack-size and MRP data.
+- `public/products/` — optimized package images extracted from the brochure.
+- `src/repositories/` — conditional PostgreSQL persistence plus local in-memory fallback.
+- `src/lib/postgres.ts` — lazy PostgreSQL pool, query, transaction, and production-configuration guard.
+- `src/services/` — pricing, checkout, inventory and payment service logic.
+- `prisma/schema.prisma` — relational schema.
+- `prisma/neon-setup.sql` — one-time schema and brochure-catalog bootstrap for an empty Neon schema.
+- `scripts/bootstrap-admin.ts` — one-time secure first-administrator creation command.

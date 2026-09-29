@@ -1,37 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CheckoutInitiateSchema } from '@/schemas';
 import { OrderService } from '@/services/order.service';
 import { AuthService } from '@/services/auth.service';
-import { handleApiError } from '@/lib/errors';
-import { PaymentGateway } from '@/types';
+import { handleApiError, ValidationError } from '@/lib/errors';
 
 export async function POST(req: NextRequest) {
   try {
     const json = await req.json();
+    const rawAddress = json?.shippingAddress || {};
+    const normalized = {
+      ...json,
+      items: Array.isArray(json?.items)
+        ? json.items.map((item: { productVariantId?: string; variantId?: string; quantity?: number }) => ({
+            variantId: item.variantId || item.productVariantId,
+            quantity: item.quantity,
+          }))
+        : json?.items,
+      customerName: json?.customerName || rawAddress.fullName,
+      customerEmail: json?.customerEmail || json?.email,
+      customerPhone: json?.customerPhone || rawAddress.phone,
+      shippingAddress: {
+        ...rawAddress,
+        pincode: rawAddress.pincode || rawAddress.postalCode,
+      },
+    };
 
-    let userId: string | undefined = undefined;
+    const parsed = CheckoutInitiateSchema.safeParse(normalized);
+    if (!parsed.success) {
+      throw new ValidationError('Please check your contact, delivery, and cart details.', parsed.error.flatten());
+    }
+
+    let userId: string | undefined;
     const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '') || req.cookies.get('aadhya_session_token')?.value;
+    const token = authHeader?.replace(/^Bearer\s+/i, '') || req.cookies.get('shlokveda_session_token')?.value;
     if (token) {
       try {
-        const decoded = AuthService.verifyToken(token);
-        userId = decoded.userId;
+        userId = (await AuthService.getCurrentUser(token)).id;
       } catch {
-        // Guest mode
+        // Allow checkout as a guest if a saved session is no longer valid.
       }
     }
 
+    const now = new Date().toISOString();
+    const parsedAddress = parsed.data.shippingAddress;
+    const shippingAddress = {
+      ...parsedAddress,
+      id: `checkout_${Date.now()}`,
+      userId: userId || '',
+      postalCode: parsedAddress.pincode,
+      createdAt: now,
+      updatedAt: now,
+    };
+
     const result = await OrderService.initiateCheckout({
+      items: parsed.data.items,
+      couponCode: parsed.data.couponCode,
+      customerName: parsed.data.customerName,
+      customerEmail: parsed.data.customerEmail,
+      customerPhone: parsed.data.customerPhone,
+      shippingAddress,
+      paymentGateway: parsed.data.paymentGateway,
       userId,
-      customerName: json.shippingAddress.fullName,
-      customerEmail: json.email || `${json.shippingAddress.phone}@aadhya.local`,
-      customerPhone: json.shippingAddress.phone,
-      shippingAddress: json.shippingAddress,
-      items: json.items.map((i: any) => ({
-        variantId: i.productVariantId || i.variantId,
-        quantity: i.quantity,
-      })),
-      couponCode: json.couponCode,
-      paymentGateway: PaymentGateway.RAZORPAY,
     });
 
     return NextResponse.json({

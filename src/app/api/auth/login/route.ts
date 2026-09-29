@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Set secure HttpOnly cookie for session token
-    response.cookies.set('aadhya_session_token', result.token, {
+    response.cookies.set('shlokveda_session_token', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

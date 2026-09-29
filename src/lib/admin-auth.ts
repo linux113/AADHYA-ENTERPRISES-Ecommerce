@@ -5,7 +5,7 @@ import { PermissionKey, SystemRole } from '@/types';
 
 export function authenticateAdmin(req: NextRequest, requiredPermission?: PermissionKey): TokenPayload {
   const authHeader = req.headers.get('authorization');
-  const token = authHeader?.replace('Bearer ', '') || req.cookies.get('aadhya_session_token')?.value;
+  const token = authHeader?.replace('Bearer ', '') || req.cookies.get('shlokveda_session_token')?.value;
 
   if (!token) {
     throw new AuthenticationError('Admin authentication required.');

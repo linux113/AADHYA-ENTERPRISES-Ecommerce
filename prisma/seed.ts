@@ -1,5 +1,5 @@
 // ==============================================================================
-// PRISMA SEED ARCHITECTURE — AADHYA ENTERPRISES
+// PRISMA SEED ARCHITECTURE — SHOLKVEDA
 // Seeds Official Business Info (Hathras), Super Admin, Ayurvedic Catalog & CMS
 // ==============================================================================
 
@@ -9,7 +9,7 @@ import { ProductRepository } from '../src/repositories/product.repository';
 import { UserRepository } from '../src/repositories/user.repository';
 
 async function main() {
-  console.log('Seeding AADHYA ENTERPRISES Database...');
+  console.log('Seeding SHOLKVEDA Database...');
 
   // Ensure singleton DB is seeded
   db.seedInitialData();
