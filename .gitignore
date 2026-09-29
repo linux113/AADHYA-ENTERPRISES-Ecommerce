@@ -9,3 +9,6 @@ yarn-error.log*
 .env*.local
 .env
 brochure_text.txt
+
+# Vercel CLI: local project link, plus pulled env files that contain secrets
+.vercel

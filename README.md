@@ -34,6 +34,25 @@ Open the local Next.js URL printed by the dev server. Without `DATABASE_URL`, th
 
 `DATABASE_URL` is deliberately not stored in this checkout. The optional `ADMIN_EMAIL` / `ADMIN_PASSWORD` values are consumed only by the explicit bootstrap script; they are not an automatic production-startup mechanism.
 
+## Deploying on Vercel
+
+`vercel.json` holds the framework preset and security headers, but the Vercel project itself is created and linked once from your own Vercel account. Use **one** of the two routes below; running both deploys every push to `main` twice.
+
+**A. Vercel Git integration (simplest).** In the Vercel dashboard choose *Add New… → Project*, import `linux113/AADHYA-ENTERPRISES-Ecommerce`, add the environment variables described below, then deploy. Pushes to `main` deploy to production and other branches get preview deployments. If you use this route, delete `.github/workflows/deploy.yml`.
+
+**B. GitHub Actions (`.github/workflows/deploy.yml`).** Link the project once from a machine that can reach Vercel:
+
+```bash
+npm i -g vercel
+vercel login
+vercel link                # choose or create the project; writes .vercel/project.json (git-ignored)
+cat .vercel/project.json   # note "orgId" and "projectId"
+```
+
+Then add three repository secrets under GitHub → *Settings → Secrets and variables → Actions*: `VERCEL_TOKEN` (a Vercel access token), `VERCEL_ORG_ID` (`orgId`) and `VERCEL_PROJECT_ID` (`projectId`). The workflow deploys to production on every push to `main` and fails immediately, naming any missing secret.
+
+Whichever route you choose, add the variables from **Environment variables** below to the Vercel project (*Settings → Environment Variables*) before the first deploy. `DATABASE_URL` is mandatory (the production runtime refuses to start without it), and `AUTH_SECRET` must be a fixed value; without it every serverless instance signs sessions with its own random secret. `NEXT_PUBLIC_*` values are inlined at build time, so changing one requires a redeploy. `ADMIN_EMAIL` / `ADMIN_PASSWORD` are for the one-off bootstrap command only and do not belong in Vercel. Do not accept real orders until the checks under **Neon and production setup** are complete.
+
 ## Environment variables
 
 - `DATABASE_URL`: Neon PostgreSQL connection string; required by the production runtime.

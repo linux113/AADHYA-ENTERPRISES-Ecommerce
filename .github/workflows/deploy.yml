@@ -6,11 +6,31 @@ on:
       - main
   workflow_dispatch:
 
+# Pin the deployment to one Vercel project. Without these the Vercel CLI guesses
+# (or creates) a project from the checkout directory name.
+# Values come from `.vercel/project.json` after running `vercel link` locally.
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
 jobs:
   Deploy-Production:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - name: Check Vercel secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=""
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=Vercel is not connected::Missing repository secret(s):${missing}. Add them under Settings > Secrets and variables > Actions (see README, 'Deploying on Vercel')."
+            exit 1
+          fi
+
       - name: Checkout Code
         uses: actions/checkout@v4
 
