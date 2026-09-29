@@ -14,6 +14,7 @@
     "test:qa": "tsx test-production-qa.ts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^5.19.1",
     "@prisma/engines": "^7.10.0",
